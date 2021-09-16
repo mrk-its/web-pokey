@@ -1,13 +1,12 @@
-const CPU_CYCLES_PER_SEC = 312 * 114 * 50;
-// const POKEY_FREQ = 312 * 114 * 50;
-// const POKEY_FREQ = 44100 * 40;
-// const OUT_FREQ = 44100;
+// clock frequency for PAL is 312 * 114 * 50 = 1778400
+// 48000 * 37 = 1776000  (relative error: 0.00135)
+// 44100 * 40 = 1764000  (relative error: 0.0081)
+// so both values are probably acceptable
 
 const OUT_FREQ = 48000;
 const M = 37;
-const POKEY_FREQ = 48000 * M;
 
-const REC_BUF_SIZE = 9 * 50;
+const POKEY_FREQ = OUT_FREQ * M;
 
 class POKEY {
   constructor(index) {
@@ -31,10 +30,9 @@ class POKEY {
       return array;
     }
     this.poly_4 = poly_array(new Poly4())
-    // console.log("poly_4:", this.poly_4)
+    // poly_5 from atari800
     this.poly_5 = [1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0]
     // this.poly_5 = poly_array(new Poly5())
-    console.log("poly_5:", this.poly_5)
     this.poly_9 = poly_array(new Poly9())
     this.poly_17 = poly_array(new Poly17())
     this.cycle_cnt = 0;
@@ -197,41 +195,13 @@ class POKEYProcessor extends AudioWorkletProcessor {
       new POKEY('R'),
     ]
 
-    this.input_dt = null;
-    this.lastSyncTime = null;
-    this.is_playing = false;
     this.buffer = [];
     this.buffer_pos = 0;
-    this.sampleCnt = 0;
     this.volume = 0.5;
 
-    this.minLatency = 0.02;
-    this.maxLatency = 0.1;
-
     this.port.onmessage = (e) => {
-      if(e.data == "clear_buffer") {
-        this.buffer = [];
-      } else if(e.data.length >= 3) {
-        if(this.is_playing) {
-          let minTimeAhead = this.sampleCnt / sampleRate + this.minLatency;
-          let maxTimeAhead = this.sampleCnt / sampleRate + this.maxLatency;
-          if(this.input_dt == null) {
-            this.input_dt = minTimeAhead - e.data[2];
-          }
-          let min_input_t = e.data[2] + this.input_dt;
-          let max_input_t = e.data[e.data.length - 1] + this.input_dt;
-          if(min_input_t < minTimeAhead) {
-            this.input_dt += (minTimeAhead - min_input_t);
-            // console.log("input too slow, syncing", (minTimeAhead - min_input_t))
-          } else if(max_input_t > maxTimeAhead) {
-            this.input_dt -= (max_input_t - maxTimeAhead);
-            // console.log("input too fast, syncing", (max_input_t - maxTimeAhead))
-          }
-          for(var i=2; i<e.data.length; i+=3) {
-            e.data[i] += this.input_dt;
-          }
-          this.buffer = this.buffer.concat(e.data);
-        }
+      if(e.data.length >= 3) {
+        this.buffer = this.buffer.concat(e.data);
       }
     }
   }
@@ -248,7 +218,7 @@ class POKEYProcessor extends AudioWorkletProcessor {
 
     while(
       this.buffer_pos < this.buffer.length
-      && this.buffer[this.buffer_pos + 2] <= this.sampleCnt / sampleRate
+      && this.buffer[this.buffer_pos + 2] <= currentFrame / sampleRate
     ) {
       var index = this.buffer[this.buffer_pos];
       let value = this.buffer[this.buffer_pos + 1];
@@ -280,8 +250,6 @@ class POKEYProcessor extends AudioWorkletProcessor {
   }
 
   process (inputs, outputs, parameters) {
-    this.is_playing = true;
-
     const output = outputs[0]
     for(let i=0; i < output[0].length; i++) {
       this.processEvents();
@@ -291,18 +259,11 @@ class POKEYProcessor extends AudioWorkletProcessor {
       } else {
         output[1][i] = output[0][i]
       }
-
-      this.sampleCnt += 1;
     }
-
     if(this.buffer_pos > 0) {
       this.buffer.splice(0, this.buffer_pos);
       this.buffer_pos = 0;
     }
-    // if(this.buffer.length > 0 && (this.lastSyncTime == null || currentTime - this.lastSyncTime >= 1.0)) {
-    //   this.lastSyncTime = currentTime;
-    //   console.log("buf len: ", this.buffer.length, " buffered time: ", this.buffer[this.buffer.length-1] - this.buffer[2]);
-    // }
     return true
   }
 }
