@@ -1,23 +1,24 @@
 const EMPTY_POKEY_REGS = [0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 export class SAPPlayer {
-    constructor() {
-        this.headers = [];
-        this.data = null;
-        this.current_frame = 0;
-        this.frame_cnt = 0;
-        this.startTime = null;
-        this.state = "stopped";
+    constructor(audio_context, pokey_node) {
+        this.audio_context = audio_context
+        this.pokey_node = pokey_node
+        this.headers = []
+        this.data = null
+        this.current_frame = 0
+        this.frame_cnt = 0
+        this.startTime = null
+        this.state = "stopped"
+        this.latency = 0.05
     }
 
     seek(pos) {
         this.current_frame = parseInt(pos);
-        window.pokey_port.postMessage("clear_buffer");
-        this.loadCurrentFrame();
-        if(this.startTime != null) {
-            this.startTime = null;
-            this.play();
-        }
+        let is_playing = this.state == "playing"
+        this.pause();
+        this.startTime = null;
+        if(is_playing) this.play();
     }
 
     _parse_headers(headers_data) {
@@ -88,7 +89,7 @@ export class SAPPlayer {
             return;
         }
         let currentTime = this.getCurrentTime();
-        while(this.startTime + this.current_frame * this.frame_interval < currentTime + 0.5) {
+        while(this.startTime + this.current_frame * this.frame_interval < currentTime + this.latency) {
             let regs = this.getPokeyRegs(this.current_frame);
             this._send_regs(regs)
             this.current_frame = (this.current_frame + this.frame_cnt + 1) % this.frame_cnt;
@@ -99,7 +100,7 @@ export class SAPPlayer {
         }
     }
     getCurrentTime() {
-        return window.audio_context.currentTime;
+        return this.audio_context.currentTime;
     }
     play() {
         let currentTime = this.getCurrentTime();
@@ -116,9 +117,9 @@ export class SAPPlayer {
         this.loadCurrentFrame();
     }
     _send_regs(regs) {
-        let msg = regs.flatMap((v, i) => [i, v, this.current_frame * this.frame_interval])
-        console.log("msg:", msg)
-        window.pokey_port.postMessage(msg);
+        let t = this.startTime != null ? this.startTime + this.current_frame * this.frame_interval : this.getCurrentTime() + this.latency;
+        let msg = regs.flatMap((v, i) => [i, v, t])
+        this.pokey_node.port.postMessage(msg);
         this.sendEvent(regs)
     }
     stop() {

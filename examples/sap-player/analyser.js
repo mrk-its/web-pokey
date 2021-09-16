@@ -64,10 +64,6 @@ function createAnalyser(audioContext) {
         scopeCanvasCtx.stroke();
 
         analyser.getByteFrequencyData(freqArray);
-
-        // let output_timestamp = audioContext.getOutputTimestamp()
-        // let currentTime = audioContext.currentTime;
-        // console.log(currentTime, output_timestamp.contextTime, currentTime - output_timestamp.contextTime);
     }
 
     return {

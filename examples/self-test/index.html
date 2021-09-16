@@ -1,0 +1,90 @@
+<html>
+
+<head>
+    <title>Web POKEY - Self Test</title>
+    <script src='https://code.jquery.com/jquery-latest.min.js' type='text/javascript'></script>
+    <script type="module">
+
+        class Player {
+            constructor(audioContext, pokeyNode) {
+                this.latency = 0.05
+                this.regs = []
+                this.audioContext = audioContext
+                this.pokeyNode = pokeyNode
+            }
+            play(regs) {
+                this.regs = regs;
+            }
+            tick() {
+                let t = this.audioContext.currentTime;
+                for(var i=0; i<this.regs.length; i+=3) {
+                    if(this.regs[i+2] >= t + this.latency) {
+                        break;
+                    }
+                }
+                if(i > 0) {
+                    let msg = this.regs.slice(0, i);
+                    this.regs.splice(0, i);
+                    this.pokeyNode.port.postMessage(msg);
+                }
+
+            }
+        }
+
+        async function init() {
+            const audioContext = new AudioContext({
+                sampleRate: 48000,
+                // latencyHint: "playback", // "interactive"
+            })
+            await audioContext.audioWorklet.addModule('../../pokey-processor.js')
+            const pokeyNode = new AudioWorkletNode(audioContext, 'POKEY', {
+                outputChannelCount: [2],
+            })
+            pokeyNode.connect(audioContext.destination)
+
+            document.addEventListener('visibilitychange', function() {
+                document.hidden ? audioContext.suspend() : audioContext.resume()
+            });
+
+            let player = new Player(audioContext, pokeyNode);
+
+            $('#play').click(() => {
+                if(audioContext.state != "running") audioContext.resume()
+                let t = audioContext.currentTime + player.latency;
+                player.play([
+                    0, 81, t + 0,
+                    1, 168, t + 0.000003936122357828253,
+                    0, 91, t + 0.5350601664417454,
+                    1, 168, t + 0.5350641025641032,
+                    0, 68, t + 1.0722525865946917,
+                    1, 168, t + 1.0722565227170495,
+                    1, 0, t + 1.6068809041835355,
+                    0, 60, t + 1.609214462438148,
+                    1, 168, t + 1.609218398560504,
+                    1, 0, t + 1.8763208502024291,
+                    0, 45, t + 1.8786667791273057,
+                    1, 168, t + 1.8786707152496636,
+                    1, 0, t + 2.1461909581646434,
+                    0, 53, t + 2.1477170490328383,
+                    1, 168, t + 2.147720985155196,
+                    1, 0, t + 2.6823689833558255
+                ])
+            });
+
+            let tick = () => {
+                player.tick();
+                requestAnimationFrame(tick);
+            }
+            tick();
+        }
+
+        init();
+
+    </script>
+</head>
+
+<body>
+    <button id="play">Self Test!</button>
+</body>
+
+</html>
