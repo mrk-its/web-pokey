@@ -1,0 +1,75 @@
+<html>
+<head>
+    <title>Web POKEY - Registers</title>
+    <style>
+        #pokey_regs input {
+            width: 3em
+        }
+    </style>
+    <script src='https://code.jquery.com/jquery-latest.min.js' type='text/javascript'></script>
+    <script type="module">
+        const audioContext = new AudioContext({
+            sampleRate: 48000,
+        })
+        audioContext.audioWorklet.addModule('../../pokey-processor.js').then(() => {
+            const pokeyNode = new AudioWorkletNode(audioContext, 'POKEY', {
+                outputChannelCount: [2],
+            })
+            pokeyNode.connect(audioContext.destination)
+            $('input').change(e => {
+                audioContext.resume();
+                let msg = [
+                    parseInt($(e.target).attr('data-index')) || 0,
+                    parseInt($(e.target).val(), 16) || 0,
+                    0,
+                ]
+                pokeyNode.port.postMessage(msg)
+                console.log(msg)
+            })
+            $('#play').click(() => {
+                $('#audctl').val('01').change()
+                $('#audf0').val('c0').change()
+                $('#audf1').val('c1').change()
+                $('#audc1').val('a4').change()
+                $('#audc0').val('a4').change()
+            })
+        })
+    </script>
+</head>
+
+<body>
+    <table id="pokey_regs">
+        <tr>
+            <td></td>
+            <th>AUDF</th>
+            <th>AUDC</th>
+        </tr>
+        <tr>
+            <th>channel 1</th>
+            <td><input id="audf0" data-index="0" value="00" /></td>
+            <td><input id="audc0" data-index="1" value="00" /></td>
+        </tr>
+        <tr>
+            <th>channel 2</th>
+            <td><input id="audf1" data-index="2" value="00" /></td>
+            <td><input id="audc1" data-index="3" value="00" /></td>
+        </tr>
+        <tr>
+            <th>channel 3</th>
+            <td><input id="audf2" data-index="4" value="00" /></td>
+            <td><input id="audc2" data-index="5" value="00" /></td>
+        </tr>
+        <tr>
+            <th>channel 4</th>
+            <td><input id="audf3" data-index="6" value="00" /></td>
+            <td><input id="audc3" data-index="7" value="00" /></td>
+        </tr>
+        <tr>
+            <th>AUDCTL</th>
+            <td><input id="audctl" data-index="8" value="00" /></td>
+        </tr>
+    </table>
+    <button id="play">Wrrr!</button>
+</body>
+
+</html>

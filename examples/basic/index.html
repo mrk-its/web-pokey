@@ -1,0 +1,32 @@
+<html>
+<head>
+    <title>Web POKEY - Simple</title>
+    <script src='https://code.jquery.com/jquery-latest.min.js' type='text/javascript'></script>
+    <script type="module">
+        const audioContext = new AudioContext({
+            sampleRate: 48000,
+        })
+        audioContext.audioWorklet.addModule('../../pokey-processor.js').then(() => {
+            const pokeyNode = new AudioWorkletNode(audioContext, 'POKEY', {
+                outputChannelCount: [2],
+            })
+            pokeyNode.connect(audioContext.destination)
+            $('#play').click(() => {
+                audioContext.resume()
+                pokeyNode.port.postMessage([
+                    0, 0xc0, 0,
+                    1, 0xa5, 0,
+                    2, 0xc1, 0,
+                    3, 0xa5, 0,
+                    8, 0x01, 0,
+                ])
+            })
+        })
+    </script>
+</head>
+
+<body>
+    <button id="play">Play!</button>
+</body>
+
+</html>
