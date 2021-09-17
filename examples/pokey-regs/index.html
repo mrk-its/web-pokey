@@ -14,21 +14,33 @@
         audioContext.audioWorklet.addModule('../../pokey.js').then(() => {
             const pokeyNode = new AudioWorkletNode(audioContext, 'POKEY')
             pokeyNode.connect(audioContext.destination)
-            $('input').change(e => {
+
+            document.addEventListener('visibilitychange', function() {
+                document.hidden ? audioContext.suspend() : audioContext.resume()
+            });
+
+            // init ui
+
+            $('#pokey_regs input').change(e => {
                 audioContext.resume();
-                let msg = [
-                    parseInt($(e.target).attr('data-index')) || 0,
-                    parseInt($(e.target).val(), 16) || 0,
-                    0,
-                ]
-                pokeyNode.port.postMessage(msg)
-                console.log(msg)
-            })
-            $('#play').click(() => {
-                $('#audctl').val('00').change()
-                $('#audf0').val('40').change()
-                $('#audc0').val('a4').change()
-            })
+                let hash = Array.from($('#pokey_regs input').map((i, v) => $(v).val())).join("_")
+                document.location.hash = '#' + hash
+            }).val("00")
+            $('body').click(() => audioContext.resume());
+
+            function hash_changed() {
+                let hash = document.location.hash.substring(1);
+                let regs = hash.split("_")
+                if (regs && regs.length == 9) {
+                    let msg = regs.flatMap((v, i) => [i, parseInt(v, 16), 0])
+                    $('#pokey_regs input').map((i, v) => $(v).val(regs[i]))
+
+                    // send regs
+                    pokeyNode.port.postMessage(msg)
+                }
+            }
+            $(window).bind("hashchange", hash_changed)
+            hash_changed();
         })
     </script>
 </head>
@@ -42,30 +54,29 @@
         </tr>
         <tr>
             <th>channel 1</th>
-            <td><input id="audf0" data-index="0" value="00" /></td>
-            <td><input id="audc0" data-index="1" value="00" /></td>
+            <td><input id="audf0" /></td>
+            <td><input id="audc0" /></td>
         </tr>
         <tr>
             <th>channel 2</th>
-            <td><input id="audf1" data-index="2" value="00" /></td>
-            <td><input id="audc1" data-index="3" value="00" /></td>
+            <td><input id="audf1" /></td>
+            <td><input id="audc1" /></td>
         </tr>
         <tr>
             <th>channel 3</th>
-            <td><input id="audf2" data-index="4" value="00" /></td>
-            <td><input id="audc2" data-index="5" value="00" /></td>
+            <td><input id="audf2" /></td>
+            <td><input id="audc2" /></td>
         </tr>
         <tr>
             <th>channel 4</th>
-            <td><input id="audf3" data-index="6" value="00" /></td>
-            <td><input id="audc3" data-index="7" value="00" /></td>
+            <td><input id="audf3" /></td>
+            <td><input id="audc3" /></td>
         </tr>
         <tr>
             <th>AUDCTL</th>
-            <td><input id="audctl" data-index="8" value="00" /></td>
+            <td><input id="audctl" /></td>
         </tr>
     </table>
-    <button id="play">Play!</button>
 </body>
 
 </html>
