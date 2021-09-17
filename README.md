@@ -3,10 +3,10 @@ Emulates 8-bit Atari POKEY chip as WebAudio component (implemented as AudioWorkl
 
 ## Features:
   * 4 channels, 15kHz / 64kHz / 1.77Mhz clock
-  * 4 / 5 / 9 / 17 bit poly noise generators
-  * volume-only mode
-  * high-pass filters
   * 16-bit linked channels
+  * 4 / 5 / 9 / 17 bit poly noise generators
+  * high-pass filters
+  * volume-only mode
   * Second POKEY (stereo) emulation
 
 ## Live examples:
