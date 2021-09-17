@@ -13,7 +13,7 @@ class POKEY {
     this.index = index
     this.filter = new FIRFilter(FIR_37_to_1);
     this.clock_cnt = 0;
-    
+
     this.set_audctl(0);
 
     this.audf = [0, 0, 0, 0];
@@ -44,12 +44,12 @@ class POKEY {
     this.link12 = (value & 0x10) > 0;
     this.link34 = (value & 0x8) > 0;
     this.clock_period = value & 1 ? 114 : 28;
-    this.hipass1 = (value & 4) > 0;
-    this.hipass2 = (value & 2) > 0;
-    this.hipass1_flipflop = 1;
-    this.hipass2_flipflop = 1;
+    this.hipass1 = (value >> 2) & 1;
+    this.hipass2 = (value >> 1) & 1;
+    this.hipass1_flipflop |= !this.hipass1;
+    this.hipass2_flipflop |= !this.hipass2;
   }
-  
+
   set_audf(index, value) {
     this.audf[index] = value;
   }
@@ -100,9 +100,6 @@ class POKEY {
   }
 
   tick() {
-    if(!this.hipass1) this.hipass1_flipflop = 1;
-    if(!this.hipass2) this.hipass2_flipflop = 1;
-
     for (let j=0; j < M; j++) {
       this.clock_cnt -= 1;
       let clock_underflow = this.clock_cnt < 0;
@@ -136,8 +133,7 @@ class POKEY {
           if(this.cnt[2] < 0) {
             this.reload_single(2)
             if(this.hipass1) {
-              // this.hipass1_flipflop = this.output[0]
-              this.set_output(0);
+              this.hipass1_flipflop = this.output[0]
             }
           }
         }
@@ -146,8 +142,7 @@ class POKEY {
           if(this.cnt[3] < 0) {
             this.reload_single(3)
             if(this.hipass2) {
-              // this.hipass2_flipflop = this.output[1]
-              this.set_output(1);
+              this.hipass2_flipflop = this.output[1]
             }
           }
         }
@@ -189,7 +184,7 @@ class POKEYProcessor extends AudioWorkletProcessor {
     super();
     this.stereo_cnt = 0;
     this.is_stereo = false;
-    
+
     this.pokey = [
       new POKEY('L'),
       new POKEY('R'),
