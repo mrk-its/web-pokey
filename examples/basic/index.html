@@ -6,7 +6,7 @@
         const audioContext = new AudioContext({
             sampleRate: 48000,
         })
-        audioContext.audioWorklet.addModule('../../pokey-processor.js').then(() => {
+        audioContext.audioWorklet.addModule('../../pokey.js').then(() => {
             const pokeyNode = new AudioWorkletNode(audioContext, 'POKEY', {
                 outputChannelCount: [2],
             })
@@ -14,11 +14,19 @@
             $('#play').click(() => {
                 audioContext.resume()
                 pokeyNode.port.postMessage([
-                    0, 0xc0, 0,
-                    1, 0xa5, 0,
-                    2, 0xc1, 0,
-                    3, 0xa5, 0,
-                    8, 0x01, 0,
+                    0x00, 0xc0, 0,
+                    0x01, 0xa5, 0,
+                    0x02, 0xc1, 0,
+                    0x03, 0xa5, 0,
+                    0x08, 0x01, 0,
+                ])
+                // second pokey
+                pokeyNode.port.postMessage([
+                    0x10, 0xc2, 0,
+                    0x11, 0xa5, 0,
+                    0x12, 0xc3, 0,
+                    0x13, 0xa5, 0,
+                    0x18, 0x01, 0,
                 ])
             })
         })

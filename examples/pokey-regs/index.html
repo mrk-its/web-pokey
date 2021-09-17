@@ -11,10 +11,8 @@
         const audioContext = new AudioContext({
             sampleRate: 48000,
         })
-        audioContext.audioWorklet.addModule('../../pokey-processor.js').then(() => {
-            const pokeyNode = new AudioWorkletNode(audioContext, 'POKEY', {
-                outputChannelCount: [2],
-            })
+        audioContext.audioWorklet.addModule('../../pokey.js').then(() => {
+            const pokeyNode = new AudioWorkletNode(audioContext, 'POKEY')
             pokeyNode.connect(audioContext.destination)
             $('input').change(e => {
                 audioContext.resume();
@@ -27,10 +25,8 @@
                 console.log(msg)
             })
             $('#play').click(() => {
-                $('#audctl').val('01').change()
-                $('#audf0').val('c0').change()
-                $('#audf1').val('c1').change()
-                $('#audc1').val('a4').change()
+                $('#audctl').val('00').change()
+                $('#audf0').val('40').change()
                 $('#audc0').val('a4').change()
             })
         })
@@ -69,7 +65,7 @@
             <td><input id="audctl" data-index="8" value="00" /></td>
         </tr>
     </table>
-    <button id="play">Wrrr!</button>
+    <button id="play">Play!</button>
 </body>
 
 </html>

@@ -36,10 +36,8 @@
                 sampleRate: 48000,
                 // latencyHint: "playback", // "interactive"
             })
-            await audioContext.audioWorklet.addModule('../../pokey-processor.js')
-            const pokeyNode = new AudioWorkletNode(audioContext, 'POKEY', {
-                outputChannelCount: [2],
-            })
+            await audioContext.audioWorklet.addModule('../../pokey.js')
+            const pokeyNode = new AudioWorkletNode(audioContext, 'POKEY')
             pokeyNode.connect(audioContext.destination)
 
             document.addEventListener('visibilitychange', function() {

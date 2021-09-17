@@ -3,10 +3,11 @@
 // 44100 * 40 = 1764000  (relative error: 0.0081)
 // so both values are probably acceptable
 
-const OUT_FREQ = 48000;
-const M = 37;
+const SUPPORTED_SAMPLE_RATES = [48000]
+const OUT_FREQ = 48000
+const M = 37
 
-const POKEY_FREQ = OUT_FREQ * M;
+const POKEY_FREQ = OUT_FREQ * M
 
 class POKEY {
   constructor(index) {
@@ -180,15 +181,18 @@ class POKEY {
 
 
 class POKEYProcessor extends AudioWorkletProcessor {
-  constructor() {
+  constructor(options) {
     super();
-    this.stereo_cnt = 0;
-    this.is_stereo = false;
+    this.is_stereo = options.outputChannelCount && options.outputChannelCount[0] > 1 || false
 
-    this.pokey = [
-      new POKEY('L'),
-      new POKEY('R'),
-    ]
+    this.is_stereo_input = this.is_stereo
+    this.stereo_input_cnt = 0;
+
+    console.log("is_stereo:", this.is_stereo)
+
+    this.pokey = [new POKEY('L')];
+    if(this.is_stereo)
+      this.pokey.push(new POKEY('R'))
 
     this.buffer = [];
     this.buffer_pos = 0;
@@ -201,11 +205,11 @@ class POKEYProcessor extends AudioWorkletProcessor {
     }
   }
 
-  set_stereo(is_stereo) {
-    if(is_stereo ^ this.is_stereo) {
-      console.info("is_stereo: ", is_stereo);
+  set_stereo_input(is_stereo_input) {
+    if(is_stereo_input ^ this.is_stereo_input) {
+      console.info("is_stereo_input:", is_stereo_input);
     }
-    this.is_stereo = is_stereo;
+    this.is_stereo_input = is_stereo_input;
   }
 
   processEvents() {
@@ -217,7 +221,7 @@ class POKEYProcessor extends AudioWorkletProcessor {
     ) {
       var index = this.buffer[this.buffer_pos];
       let value = this.buffer[this.buffer_pos + 1];
-      let pokey_idx = this.pokey.length == 1 ? 0 : (index >> 4) & 1;
+      let pokey_idx = this.is_stereo ? (index >> 4) & 1 : 0;
       index = index & 0xf;
       pokey_lr |= (pokey_idx + 1)
       if(index == 8) {
@@ -230,16 +234,16 @@ class POKEYProcessor extends AudioWorkletProcessor {
       this.buffer_pos += 3;
     }
     if(pokey_lr == 3) {
-      this.stereo_cnt += 1;
-      if(this.stereo_cnt > 20) {
-        this.stereo_cnt = 20;
-        this.set_stereo(true);
+      this.stereo_input_cnt += 1;
+      if(this.stereo_input_cnt > 20) {
+        this.stereo_input_cnt = 20;
+        this.set_stereo_input(true);
       }
     } else if(pokey_lr == 1) {
-      this.stereo_cnt -= 1;
-      if(this.stereo_cnt < 0) {
-        this.stereo_cnt = 0;
-        this.set_stereo(false);
+      this.stereo_input_cnt -= 1;
+      if(this.stereo_input_cnt < 0) {
+        this.stereo_input_cnt = 0;
+        this.set_stereo_input(false);
       }
     }
   }
@@ -249,10 +253,12 @@ class POKEYProcessor extends AudioWorkletProcessor {
     for(let i=0; i < output[0].length; i++) {
       this.processEvents();
       output[0][i] = this.pokey[0].tick() * this.volume;
-      if(this.is_stereo) {
-        output[1][i] = this.pokey.length == 2 ? this.pokey[1].tick() * this.volume : output[0][i]
-      } else {
-        output[1][i] = output[0][i]
+      if(output.length > 1) {
+        if(this.is_stereo_input) {
+          output[1][i] = this.pokey.length == 2 ? this.pokey[1].tick() * this.volume : output[0][i]
+        } else {
+          output[1][i] = output[0][i]
+        }
       }
     }
     if(this.buffer_pos > 0) {
@@ -262,7 +268,9 @@ class POKEYProcessor extends AudioWorkletProcessor {
     return true
   }
 }
-
+if(SUPPORTED_SAMPLE_RATES.indexOf(sampleRate) < 0) {
+  console.warn("unsupported sampleRate:", sampleRate, ", supported: ", SUPPORTED_SAMPLE_RATES);
+}
 registerProcessor('POKEY', POKEYProcessor)
 
 class PolyGenerator {
