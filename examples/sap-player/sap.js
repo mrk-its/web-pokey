@@ -23,7 +23,8 @@ export class SAPPlayer {
 
     _parse_headers(headers_data) {
         let decoder = new TextDecoder();
-        let headers = decoder.decode(headers_data).split("\n")
+        this.raw_headers = decoder.decode(headers_data)
+        let headers = this.raw_headers.split("\n")
         let headers_obj = {}
         for(let header of headers) {
             let key = header.split(" ", 1);
@@ -32,16 +33,21 @@ export class SAPPlayer {
     }
 
     load(array_buffer) {
-            let data = new Uint8Array(array_buffer);
+        let data = new Uint8Array(array_buffer);
         var ptr=0;
         while(ptr < 1024) {
-            if(data[ptr] == 13 && data[ptr + 1] == 10 && data[ptr + 2] == 13 && data[ptr + 3] == 10) {
+            if(
+                data[ptr] == 13 && data[ptr + 1] == 10 && (
+                    data[ptr + 2] == 13 && data[ptr + 3] == 10 || data[ptr + 2] == 255 && data[ptr + 3] == 255
+                )
+            ) {
                 this.headers = this._parse_headers(data.slice(0, ptr));
-                console.log(this.headers);
                 if(this.headers.TYPE != "R") {
-                    console.warn(`TYPE: ${this.headers.TYPE} - only R type is supported`);
+                    this.error_message = `TYPE: ${this.headers.TYPE} - only R type is supported`
+                    console.error(this.error_message);
                     this.data = new Uint8Array();
                 } else {
+                    this.error_message = ''
                     this.data = data.slice(ptr + 4);
                 }
                 var is_ntsc = typeof this.headers.NTSC != "undefined"
@@ -61,7 +67,7 @@ export class SAPPlayer {
             }
             ptr++;
         }
-        console.warn("cannot locate data section");
+        this.error_message = "invalid file format"
         return false;
     }
     getPokeyRegs(index) {
