@@ -212,7 +212,7 @@ class POKEYProcessor extends AudioWorkletProcessor {
     this.is_stereo_input = is_stereo_input;
   }
 
-  processEvents() {
+  processEvents(currentFrame) {
     var pokey_lr = 0;
 
     while(
@@ -251,7 +251,7 @@ class POKEYProcessor extends AudioWorkletProcessor {
   process (inputs, outputs, parameters) {
     const output = outputs[0]
     for(let i=0; i < output[0].length; i++) {
-      this.processEvents();
+      this.processEvents(currentFrame + i);
       output[0][i] = this.pokey[0].tick() * this.volume;
       if(output.length > 1) {
         if(this.is_stereo_input) {
