@@ -42,7 +42,7 @@ export class SAPPlayer {
                 )
             ) {
                 this.headers = this._parse_headers(data.slice(0, ptr));
-                if(this.headers.TYPE != "R") {
+                if((this.headers.TYPE || 'R') != "R") {
                     this.error_message = `TYPE: ${this.headers.TYPE} - only R type is supported`
                     console.error(this.error_message);
                     this.data = new Uint8Array();
