@@ -7,12 +7,19 @@ const SUPPORTED_SAMPLE_RATES = [48000]
 const OUT_FREQ = 48000
 const M = 37
 
+// Altirra Hardware Reference Manual,
+// D.3 First amplifier stage, page 388
+const HIGH_PASS_TIME_CONST = 0.0026
+
 const POKEY_FREQ = OUT_FREQ * M
+
+
 
 class POKEY {
   constructor(index) {
     this.index = index
-    this.filter = new FIRFilter(FIR_37_to_1);
+    this.fir_filter = new FIRFilter(FIR_37_to_1);
+    this.high_pass_filter = new HighPassFilter(HIGH_PASS_TIME_CONST, OUT_FREQ);
     this.clock_cnt = 0;
 
     this.set_audctl(0);
@@ -100,7 +107,7 @@ class POKEY {
     this.set_output(k + 1)
   }
 
-  tick() {
+  get() {
     for (let j=0; j < M; j++) {
       this.clock_cnt -= 1;
       let clock_underflow = this.clock_cnt < 0;
@@ -173,9 +180,9 @@ class POKEY {
       let normalize = vol => vol / 60.0
       let normalizeAltirra = vol => (1.0 - Math.exp(-2.9 * (vol / 60.0))) / (1.0 - Math.exp(-2.9))
       let sample = normalizeAltirra(ch1 * vol(0) + ch2 * vol(1) + ch3 * vol(2) + ch4 * vol(3))
-      this.filter.add_sample(sample);
+      this.fir_filter.add_sample(sample);
     }
-    return this.filter.get();
+    return this.high_pass_filter.get(this.fir_filter.get());
   }
 }
 
@@ -252,10 +259,10 @@ class POKEYProcessor extends AudioWorkletProcessor {
     const output = outputs[0]
     for(let i=0; i < output[0].length; i++) {
       this.processEvents(currentFrame + i);
-      output[0][i] = this.pokey[0].tick() * this.volume;
+      output[0][i] = this.pokey[0].get() * this.volume;
       if(output.length > 1) {
         if(this.is_stereo_input) {
-          output[1][i] = this.pokey.length == 2 ? this.pokey[1].tick() * this.volume : output[0][i]
+          output[1][i] = this.pokey.length == 2 ? this.pokey[1].get() * this.volume : output[0][i]
         } else {
           output[1][i] = output[0][i]
         }
@@ -322,6 +329,19 @@ class Poly17 extends PolyGenerator {
   }
   compute(v, n_bits, highest_bit) {
     return (v >> 1) + (((v << (n_bits-1)) ^ (v << (12-1))) & highest_bit)
+  }
+}
+
+class HighPassFilter {
+  constructor(time_const, freq) {
+    this.alpha = Math.exp((-1/(time_const * freq)))
+    this.prev_input = 0.0
+    this.prev_output = 0.0
+  }
+  get(input) {
+    this.prev_output = this.alpha * (this.prev_output + input - this.prev_input)
+    this.prev_input = input
+    return this.prev_output
   }
 }
 
