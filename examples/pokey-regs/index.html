@@ -9,7 +9,7 @@
     <script src='https://code.jquery.com/jquery-latest.min.js' type='text/javascript'></script>
     <script type="module">
         const audioContext = new AudioContext({
-            sampleRate: 48000,
+            sampleRate: 44100,
         })
         audioContext.audioWorklet.addModule('../../pokey.js').then(() => {
             const pokeyNode = new AudioWorkletNode(audioContext, 'POKEY')
