@@ -11,13 +11,20 @@
         import { SAPPlayer} from './sap.js'
         const reg_names = ["audf1", "audc1", "audf2", "audc2", "audf3", "audc3", "audf4", "audc4", "audctl"];
 
+        function get_sample_rate() {
+            return parseInt(localStorage.sampleRate || 44100)
+        }
+
         async function init(latencyHint) {
             var latencyHint = parseFloat(localStorage.latencyHint);
             if(!(latencyHint >=0 )) latencyHint = localStorage.latencyHint || "playback";
-            const audioContext = new AudioContext({
-                sampleRate: 44100,
+            let audioContextParams = {
+                sampleRate: get_sample_rate(),
                 latencyHint,
-            })
+            }
+            const audioContext = new AudioContext(audioContextParams)
+            console.info("created audioContext with:", audioContextParams)
+
             document.addEventListener('visibilitychange', function() {
                 if (document.hidden) {
                     audioContext.suspend();
@@ -27,6 +34,14 @@
             });
 
             $("#latency").text(audioContext.baseLatency)
+
+            $("select.sample_rate").val(get_sample_rate()).change((e) => {
+                let val = $(e.target).val()
+                console.log(val)
+                localStorage.sampleRate = val
+                window.location.reload(true)
+            })
+
             await audioContext.audioWorklet.addModule('../../pokey.js')
             const pokeyNode = new AudioWorkletNode(audioContext, 'POKEY')
             var analyser = createAnalyser(audioContext);
@@ -129,26 +144,33 @@
 
     </script>
     <style>
+        #player > * {
+            margin: 1em;
+        }
+        #player input[type=range] {
+            margin: 0 1em;
+        }
         #pokey_regs input {
-            width: 3em
+            width: 3em;
         }
-
-        canvas {
+        #pokey_regs {
+            float: left;
             margin: 1em;
         }
 
-        input[type=range] {
-            margin: 1em;
-        }
         #sap_error {
             color: red;
             font-weight: bold;
+        }
+        .debug {
+            color: gray;
         }
     </style>
 </head>
 
 <body>
     <h3>SAP type R Player</h3>
+    <div style="position: relative">
     <table id="pokey_regs">
         <tr>
             <td></td>
@@ -180,26 +202,36 @@
             <td><input id="audctl" value="00" /></td>
         </tr>
     </table>
+
+    <div style="float: left">
+        <pre id="sap_headers"></pre>
+        <div id="sap_error"></div>
+    </div>
+</div>
+
     <br />
     <div id="player" style="width: 1024px">
-        <canvas id="oscilloscope" width="1024" height="256">
-
-        </canvas>
-        <button class="prev">&lt;&lt;</button>
-        <button class="play">play</button>
-        <button class="pause">pause</button>
-        <button class="stop">stop</button>
-        <button class="next">&gt;&gt;</button>
-        <label class="position-info"></label>
+        <canvas id="oscilloscope" width="1024" height="256"></canvas>
         <input type="range" style="width: 100%" class="seek" max="0", value="0" />
+        <div>
+            <button class="prev">&lt;&lt;</button>
+            <button class="play">play</button>
+            <button class="pause">pause</button>
+            <button class="stop">stop</button>
+            <button class="next">&gt;&gt;</button>
+            <label class="position-info"></label>
+        </div>
     </div>
-    <div id="sap_error"></div>
-    <pre id="sap_headers">
-
-    </pre>
+    sample rate: <select class="sample_rate">
+        <option value="44100">44100</option>
+        <option value="48000">48000</option>
+        <option value="56000">56000</option>
+    </select>
     latency hint: <input id="latency-hint" value="playback" />
-    <p>Latency: <span id="latency"></span></p>
-    <p>UserAgent: <span id="ua"></span></p>
+    <div class="debug">
+        <p>Latency: <span id="latency"></span></p>
+        <p>UserAgent: <span id="ua"></span></p>
+    </div>
 </body>
 
 </html>

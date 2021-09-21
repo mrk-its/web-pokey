@@ -16,6 +16,9 @@ class POKEY {
     } else if (sampleRate == 44100) {
       this.fir_filter = new Filter_Cascade_40_1();
       this.divider = 40
+    } else if (sampleRate == 56000) {
+      this.fir_filter = new Filter_Cascade_32_1();
+      this.divider = 32
     } else {
       let err = `invalid sample rate ${sampleRate}`
       console.error(err)
@@ -95,8 +98,8 @@ class POKEY {
   set_output(k) {
     if(this.audc[k] & 0x80 || this.get_poly_output(k, this.poly_5)) {
       this.square_output[k] = (~this.square_output[k]) & 1
-      this.output[k] = this.get_output(k)
     }
+    this.output[k] = this.get_output(k)
   }
 
   reload_single(k) {
@@ -402,6 +405,40 @@ class Filter_Cascade_40_1 {
 
   get() {
     return this.fir5.get()
+  }
+
+}
+
+class Filter_Cascade_32_1 {
+  constructor() {
+    this.sample_cnt = 0
+
+    this.fir2_1 = new FIRHalfBandFilter(FIR_HALF_BAND);
+    this.fir2_2 = new FIRHalfBandFilter(FIR_HALF_BAND);
+    this.fir2_3 = new FIRHalfBandFilter(FIR_HALF_BAND);
+    this.fir2_4 = new FIRHalfBandFilter(FIR_HALF_BAND);
+    this.fir2_5 = new FIRHalfBandFilter(FIR_HALF_BAND);
+  }
+
+  add_sample(value) {
+    let i = ++this.sample_cnt
+    this.fir2_1.add_sample(value)
+    if (i % 2 == 0) {
+      this.fir2_2.add_sample(this.fir2_1.get())
+      if (i % 4 == 0) {
+        this.fir2_3.add_sample(this.fir2_2.get())
+        if (i % 8 == 0) {
+          this.fir2_4.add_sample(this.fir2_3.get())
+          if(i % 16 == 0) {
+            this.fir2_5.add_sample(this.fir2_4.get())
+          }
+        }
+      }
+    }
+  }
+
+  get() {
+    return this.fir2_5.get()
   }
 
 }
