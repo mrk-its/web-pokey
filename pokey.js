@@ -196,6 +196,17 @@ class POKEY {
 
 
 class POKEYProcessor extends AudioWorkletProcessor {
+
+  static get parameterDescriptors() {
+    return [{
+      name: "gain",
+      defaultValue: 1,
+      minValue: 0,
+      maxValue: 1,
+      automationRate: "k-rate",
+    }]
+  }
+
   constructor(options) {
     super();
     this.is_stereo = options.outputChannelCount && options.outputChannelCount[0] > 1 || false
@@ -211,7 +222,6 @@ class POKEYProcessor extends AudioWorkletProcessor {
 
     this.buffer = [];
     this.buffer_pos = 0;
-    this.volume = 1.0;
 
     this.port.onmessage = (e) => {
       if (e.data.length >= 3) {
@@ -264,13 +274,14 @@ class POKEYProcessor extends AudioWorkletProcessor {
   }
 
   process(inputs, outputs, parameters) {
+    let gain = parameters.gain[0];
     const output = outputs[0]
     for (let i = 0; i < output[0].length; i++) {
       this.processEvents(currentFrame + i);
-      output[0][i] = this.pokey[0].get() * this.volume;
+      output[0][i] = this.pokey[0].get() * gain;
       if (output.length > 1) {
         if (this.is_stereo_input) {
-          output[1][i] = this.pokey.length == 2 ? this.pokey[1].get() * this.volume : output[0][i]
+          output[1][i] = this.pokey.length == 2 ? this.pokey[1].get() * gain : output[0][i]
         } else {
           output[1][i] = output[0][i]
         }

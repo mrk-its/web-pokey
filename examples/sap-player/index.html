@@ -12,7 +12,7 @@
         const reg_names = ["audf1", "audc1", "audf2", "audc2", "audf3", "audc3", "audf4", "audc4", "audctl"];
 
         function get_sample_rate() {
-            return parseInt(localStorage.sampleRate || 44100)
+            return parseInt(localStorage.sampleRate || 48000)
         }
 
         async function init(latencyHint) {
@@ -98,7 +98,6 @@
                 }
                 return hex;
             }
-
             $("#latency-hint").change(e => {
                 localStorage['latencyHint'] = e.target.value;
             }).val(localStorage['latencyHint'] || 'playback');
@@ -110,6 +109,15 @@
             $(window).bind("hashchange", hash_changed);
 
             let seek = $('#player .seek').bind('input', event => sapPlayer.seek(event.target.value));
+            let gain = $('#player .gain').bind('input',
+                event => {
+                    // let db = event.target.value * 3 / 4
+                    // let gain = Math.pow(10, db / 10)
+                    // console.log("gain", db, "db (", gain, ")")
+                    let gain = event.target.value
+                    sapPlayer.pokey_node.parameters.get('gain').value = gain
+                }
+            )
             let position_info = $('#player .position-info');
 
             $('#player .play').click(() => sapPlayer.play());
@@ -147,7 +155,7 @@
         #player > * {
             margin: 1em;
         }
-        #player input[type=range] {
+        #player input.seek {
             margin: 0 1em;
         }
         #pokey_regs input {
@@ -218,6 +226,8 @@
             <button class="pause">pause</button>
             <button class="stop">stop</button>
             <button class="next">&gt;&gt;</button>
+            <!-- input type="range" style="width: 100px" class="gain" max="0.0" value="1.0" min="-20" step="1" /-->
+            <input type="range" style="width: 100px" class="gain" min="0.0" value="1.0" max="1.0" step="0.01" />
             <label class="position-info"></label>
         </div>
     </div>
