@@ -115,9 +115,16 @@
                     // let gain = Math.pow(10, db / 10)
                     // console.log("gain", db, "db (", gain, ")")
                     let gain = event.target.value
+                    localStorage.gain = gain
                     sapPlayer.pokey_node.parameters.get('gain').value = gain
                 }
             )
+            if('gain' in localStorage) {
+                let gain = parseFloat(localStorage.gain)
+                sapPlayer.pokey_node.parameters.get('gain').value = gain
+                $('#player .gain').val(gain)
+            }
+
             let position_info = $('#player .position-info');
 
             $('#player .play').click(() => sapPlayer.play());
