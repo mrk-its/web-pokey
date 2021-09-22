@@ -114,21 +114,30 @@
                 event.preventDefault();
                 event.stopPropagation();
             }
+            function handle_file(file) {
+                file.arrayBuffer()
+                    .then(load_sap)
+                    .then(() => document.location.hash = '')
+            }
+            $('input[type=file]').on("change", event => {
+                for(const file of event.target.files) {
+                    handle_file(file)
+                }
+            })
 
             $('html')
               .on("dragover", stop_propagation)
               .on("drop", stop_propagation)
               .on("dragleave", stop_propagation)
               .on("drop", event => {
+                console.info("dropped:", event.originalEvent)
                 let url = event.originalEvent.dataTransfer.getData("text/plain")
                 if(url) {
                     document.location.hash = url
                     return;
                 }
-                console.log("drop", event, event.originalEvent.dataTransfer.files, url);
                 for(const file of event.originalEvent.dataTransfer.files ) {
-                    console.info("dropped:", file)
-                    file.arrayBuffer().then(load_sap).then(() => document.location.hash = '')
+                    handle_file(file);
                 }
             })
 
@@ -252,6 +261,7 @@
         <canvas id="oscilloscope" width="1024" height="256"></canvas>
         <input type="range" style="width: 100%" class="seek" max="0", value="0" />
         <div>
+            <input type="file" />
             <button class="prev">&lt;&lt;</button>
             <button class="play">play</button>
             <button class="pause">pause</button>
