@@ -33,6 +33,7 @@ export class SAPPlayer {
     }
 
     load(array_buffer) {
+        this.stop();
         let data = new Uint8Array(array_buffer);
         var ptr=0;
         while(ptr < 1024) {
