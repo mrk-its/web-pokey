@@ -138,7 +138,8 @@
                     return;
                 }
                 for(const file of event.originalEvent.dataTransfer.files ) {
-                    handle_file(file);
+                    $('input[type=file]').val('')
+                    handle_file(file)
                 }
             })
 
