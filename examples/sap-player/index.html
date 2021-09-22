@@ -65,6 +65,7 @@
                 fetch(url)
                     .then(response => response.arrayBuffer())
                     .then(load_sap)
+                    .then(() => $('input[type=file]').val(''))
                     .catch(err => $("#sap_error").text(err))
             }
 
