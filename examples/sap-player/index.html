@@ -144,21 +144,17 @@
             })
 
             let seek = $('#player .seek').bind('input', event => sapPlayer.seek(event.target.value));
-            let gain = $('#player .gain').bind('input',
+            let gain = $('#player .gain').val(localStorage.volume_db || 0).on('input',
                 event => {
-                    // let db = event.target.value * 3 / 4
-                    // let gain = Math.pow(10, db / 10)
-                    // console.log("gain", db, "db (", gain, ")")
-                    let gain = event.target.value
-                    localStorage.gain = gain
+                    let db = parseFloat(event.target.value)
+                    let min = parseFloat(event.target.min)
+                    let gain = db > min ? Math.pow(10, db / 20) : 0
+                    console.log("gain", db, "db (", gain, ")")
                     sapPlayer.pokey_node.parameters.get('gain').value = gain
+                    localStorage.volume_db = db
+                    $("span.volume_db").text(`${db.toFixed(1)}dB`)
                 }
-            )
-            if('gain' in localStorage) {
-                let gain = parseFloat(localStorage.gain)
-                sapPlayer.pokey_node.parameters.get('gain').value = gain
-                $('#player .gain').val(gain)
-            }
+            ).trigger('input')
 
             let position_info = $('#player .position-info');
 
@@ -269,8 +265,9 @@
             <button class="pause">pause</button>
             <button class="stop">stop</button>
             <button class="next">&gt;&gt;</button>
-            <!-- input type="range" style="width: 100px" class="gain" max="0.0" value="1.0" min="-20" step="1" /-->
-            <input type="range" style="width: 100px" class="gain" min="0.0" value="1.0" max="1.0" step="0.01" />
+            <input type="range" style="width: 100px" class="gain" min="-30" max="0.0" step="0.5" value="1.0"/>
+            <!-- span class="volume_db"></span -->
+            <!-- input type="range" style="width: 100px" class="gain" min="0.0" value="1.0" max="1.0" step="0.01" -->
             <label class="position-info"></label>
         </div>
     </div>
