@@ -1,8 +1,10 @@
 function createAnalyser(audioContext) {
     var analyser = audioContext.createAnalyser();
+    analyser.maxDecibels = -24;
+    analyser.minDecibels = -80;
     analyser.fftSize = 2048;
     var bufferLength = analyser.frequencyBinCount;
-    var dataArray = new Uint8Array(bufferLength);
+    var dataArray = new Float32Array(bufferLength);
     var freqArray = new Uint8Array(bufferLength);
 
     var scopeCanvas = document.getElementById("oscilloscope");
@@ -15,7 +17,8 @@ function createAnalyser(audioContext) {
     var spectrumCanvasCtx = scopeCanvasCtx;
 
     function draw() {
-        analyser.getByteTimeDomainData(dataArray);
+        // analyser.getByteTimeDomainData(dataArray);
+        analyser.getFloatTimeDomainData(dataArray);
 
         scopeCanvasCtx.fillStyle = "rgb(0, 0, 0)";
         scopeCanvasCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
@@ -42,11 +45,11 @@ function createAnalyser(audioContext) {
         var offset = null;
         scopeCanvasCtx.moveTo(0, scopeCanvas.height / 2);
         for (var i = 0; i < bufferLength; i++) {
-            var v = dataArray[i] / 128.0;
-            if(offset == null && last_sample != null && last_sample < 1.0 && v >= 1.0) {
+            var v = dataArray[i] / 4
+            if(offset == null && last_sample != null && last_sample < 0.0 && v >= 0.0) {
                 offset = x;
             }
-            var y = v * scopeCanvas.height / 2;
+            var y = scopeCanvas.height / 2 + v * scopeCanvas.height / 2
             if(offset != null && x >= offset) {
                 if (x == offset) {
                     scopeCanvasCtx.moveTo(x - offset, y);

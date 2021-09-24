@@ -37,13 +37,14 @@
 
             $("select.sample_rate").val(get_sample_rate()).change((e) => {
                 let val = $(e.target).val()
-                console.log(val)
                 localStorage.sampleRate = val
                 window.location.reload(true)
             })
 
             await audioContext.audioWorklet.addModule('../../pokey.js')
-            const pokeyNode = new AudioWorkletNode(audioContext, 'POKEY')
+            const pokeyNode = new AudioWorkletNode(audioContext, 'POKEY', {
+                outputChannelCount: [2],
+            })
             var analyser = createAnalyser(audioContext);
             analyser.node.connect(audioContext.destination);
             // pokeyNode.connect(audioContext.destination)
@@ -131,7 +132,6 @@
               .on("drop", stop_propagation)
               .on("dragleave", stop_propagation)
               .on("drop", event => {
-                console.info("dropped:", event.originalEvent)
                 let url = event.originalEvent.dataTransfer.getData("text/plain")
                 if(url) {
                     document.location.hash = url

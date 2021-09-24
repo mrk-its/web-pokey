@@ -1,4 +1,4 @@
-const EMPTY_POKEY_REGS = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+const EMPTY_POKEY_REGS = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 export class SAPPlayer {
     constructor(audio_context, pokey_node) {
@@ -28,7 +28,8 @@ export class SAPPlayer {
         let headers_obj = {}
         for(let header of headers) {
             let key = header.split(" ", 1);
-            headers_obj[key] = header.substring(key[0].length + 1).trim();       }
+            headers_obj[key] = header.substring(key[0].length + 1).trim() || true;
+        }
         return headers_obj
     }
 
@@ -43,6 +44,7 @@ export class SAPPlayer {
                 )
             ) {
                 this.headers = this._parse_headers(data.slice(0, ptr));
+                console.info(this.headers);
                 if((this.headers.TYPE || 'R') != "R") {
                     this.error_message = `TYPE: ${this.headers.TYPE} - only R type is supported`
                     console.error(this.error_message);
@@ -60,7 +62,8 @@ export class SAPPlayer {
                 } else {
                     this.frame_interval = 1 / 50;
                 }
-                this.frame_cnt = Math.floor(this.data.length / 9);
+                this.frame_size = (this.headers.STEREO ? 18 : 9)
+                this.frame_cnt = Math.floor(this.data.length / this.frame_size);
                 this.current_frame = 0;
                 this.sendEvent();
                 let is_ok = this.data.length > 0;
@@ -72,11 +75,10 @@ export class SAPPlayer {
         return false;
     }
     getPokeyRegs(index) {
-        return Array.from(this.data.slice(index * 9, (index + 1) * 9));
+        return Array.from(this.data.slice(index * this.frame_size, (index + 1) * this.frame_size));
     }
     loadCurrentFrame() {
-        let regs = Array.from(this.data.slice(this.current_frame * 9, this.current_frame * 9 + 9))
-        this._send_regs(regs)
+        this._send_regs(this.getPokeyRegs(this.current_frame))
     }
     sendEvent(regs) {
         let event = new Event("sap_player");
@@ -125,7 +127,7 @@ export class SAPPlayer {
     }
     _send_regs(regs) {
         let t = this.startTime != null ? this.startTime + this.current_frame * this.frame_interval : this.getCurrentTime() + this.latency;
-        let msg = regs.flatMap((v, i) => [i, v, t])
+        let msg = regs.slice().flatMap((v, i) => [i < 9 ? i : i - 9 + 16, v, t])
         this.pokey_node.port.postMessage(msg);
         this.sendEvent(regs)
     }
