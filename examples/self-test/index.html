@@ -33,7 +33,7 @@
 
         async function init() {
             const audioContext = new AudioContext({
-                sampleRate: 44100,
+                sampleRate: 56000,
             })
             await audioContext.audioWorklet.addModule('../../pokey.js')
             const pokeyNode = new AudioWorkletNode(audioContext, 'POKEY')
