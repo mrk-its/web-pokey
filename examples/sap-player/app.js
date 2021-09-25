@@ -47,9 +47,17 @@ async function init(latencyHint) {
 
     function load_sap(buffer) {
         let is_ok = sapPlayer.load(buffer);
+        if(!is_ok) {
+            $("#sap_error").text(sapPlayer.error_message);
+            return
+        }
+        let title_parts = [
+            sapPlayer.headers.AUTHOR, sapPlayer.headers.NAME
+        ].filter((x) => x)
+        $("#player .title").text(title_parts.join(" / "))
         $("body").toggleClass("stereo", is_ok && sapPlayer.headers.STEREO)
         $("#sap_error").text(sapPlayer.error_message);
-        let headers = $("#sap_headers").text(sapPlayer.raw_headers);
+        $("#sap_headers").text(sapPlayer.raw_headers);
     }
 
     function play_url(url) {

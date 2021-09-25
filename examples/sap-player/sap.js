@@ -43,16 +43,17 @@ export class SAPPlayer {
                     data[ptr + 2] == 13 && data[ptr + 3] == 10 || data[ptr + 2] == 255 && data[ptr + 3] == 255
                 )
             ) {
-                this.headers = this._parse_headers(data.slice(0, ptr));
-                console.info(this.headers);
-                if((this.headers.TYPE || 'R') != "R") {
+                let headers = this._parse_headers(data.slice(0, ptr));
+                console.info(headers);
+                if((headers.TYPE || 'R') != "R") {
                     this.error_message = `TYPE: ${this.headers.TYPE} - only R type is supported`
                     console.error(this.error_message);
-                    this.data = new Uint8Array();
+                    return false
                 } else {
                     this.error_message = ''
                     this.data = data.slice(ptr + 4);
                 }
+                this.headers = headers
                 var is_ntsc = typeof this.headers.NTSC != "undefined"
                 var fastplay = parseInt(this.headers.FASTPLAY) || 0;
                 if(fastplay) {

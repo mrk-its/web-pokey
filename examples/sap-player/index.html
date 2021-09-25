@@ -13,8 +13,17 @@
         #player > * {
             margin: 1em;
         }
-        #player input.seek {
+        #player .title {
+            font-weight: bold
+        }
+        #player canvas {
             margin: 0 1em;
+        }
+        #player > div {
+            width: 100%;
+        }
+        #player input.seek {
+            margin-bottom: 0px;
         }
         .pokey_regs input {
             width: 3em;
@@ -25,6 +34,7 @@
         }
         #pokey_1 {
             display: none;
+            margin-left: -0.5em;
         }
         .stereo #pokey_1 {
             display: block;
@@ -41,79 +51,8 @@
 </head>
 
 <body>
-    <div style="position: relative">
-    <table class="pokey_regs" id="pokey_0">
-        <tr>
-            <td></td>
-            <td>AUDF</td>
-            <td>AUDC</td>
-        </tr>
-        <tr>
-            <td>channel 1</td>
-            <td><input class="audf1" value="00" /></td>
-            <td><input class="audc1" value="00" /></td>
-        </tr>
-        <tr>
-            <td>channel 2</td>
-            <td><input class="audf2" value="00" /></td>
-            <td><input class="audc2" value="00" /></td>
-        </tr>
-        <tr>
-            <td>channel 3</td>
-            <td><input class="audf3" value="00" /></td>
-            <td><input class="audc3" value="00" /></td>
-        </tr>
-        <tr>
-            <td>channel 4</td>
-            <td><input class="audf4" value="00" /></td>
-            <td><input class="audc4" value="00" /></td>
-        </tr>
-        <tr>
-            <td>AUDCTL</td>
-            <td><input class="audctl" value="00" /></td>
-        </tr>
-    </table>
-
-    <table class="pokey_regs" id="pokey_1">
-        <tr>
-            <td></td>
-            <td>AUDF</td>
-            <td>AUDC</td>
-        </tr>
-        <tr>
-            <td>channel 1</td>
-            <td><input class="audf1" value="00" /></td>
-            <td><input class="audc1" value="00" /></td>
-        </tr>
-        <tr>
-            <td>channel 2</td>
-            <td><input class="audf2" value="00" /></td>
-            <td><input class="audc2" value="00" /></td>
-        </tr>
-        <tr>
-            <td>channel 3</td>
-            <td><input class="audf3" value="00" /></td>
-            <td><input class="audc3" value="00" /></td>
-        </tr>
-        <tr>
-            <td>channel 4</td>
-            <td><input class="audf4" value="00" /></td>
-            <td><input class="audc4" value="00" /></td>
-        </tr>
-        <tr>
-            <td>AUDCTL</td>
-            <td><input class="audctl" value="00" /></td>
-        </tr>
-    </table>
-
-    <div style="float: left">
-        <pre id="sap_headers"></pre>
-        <div id="sap_error"></div>
-    </div>
-</div>
-
-    <br />
     <div id="player" style="width: 1024px">
+        <div class="title"></div>
         <canvas id="oscilloscope" width="1024" height="256"></canvas>
         <input type="range" style="width: 100%" class="seek" max="0", value="0" />
         <div>
@@ -123,11 +62,79 @@
             <button class="pause">pause</button>
             <button class="stop">stop</button>
             <button class="next">&gt;&gt;</button>
-            <input type="range" style="width: 100px" class="gain" min="-30" max="0.0" step="0.5" value="1.0"/>
+            <div style="float: right">
+                &#128266;
+                <input type="range" style="width: 100px" class="gain" min="-30" max="0.0" step="0.5" value="1.0"/>
+            </div>
             <!-- span class="volume_db"></span -->
             <!-- input type="range" style="width: 100px" class="gain" min="0.0" value="1.0" max="1.0" step="0.01" -->
             <label class="position-info"></label>
         </div>
+    </div>
+    <div id="sap_error"></div>
+    <div style="position: relative">
+        <table class="pokey_regs" id="pokey_0">
+            <tr>
+                <td></td>
+                <td>AUDF</td>
+                <td>AUDC</td>
+            </tr>
+            <tr>
+                <td>channel 1</td>
+                <td><input class="audf1" value="00" /></td>
+                <td><input class="audc1" value="00" /></td>
+            </tr>
+            <tr>
+                <td>channel 2</td>
+                <td><input class="audf2" value="00" /></td>
+                <td><input class="audc2" value="00" /></td>
+            </tr>
+            <tr>
+                <td>channel 3</td>
+                <td><input class="audf3" value="00" /></td>
+                <td><input class="audc3" value="00" /></td>
+            </tr>
+            <tr>
+                <td>channel 4</td>
+                <td><input class="audf4" value="00" /></td>
+                <td><input class="audc4" value="00" /></td>
+            </tr>
+            <tr>
+                <td>AUDCTL</td>
+                <td><input class="audctl" value="00" /></td>
+            </tr>
+        </table>
+
+        <table class="pokey_regs" id="pokey_1">
+            <tr>
+                <td>AUDF</td>
+                <td>AUDC</td>
+            </tr>
+            <tr>
+                <td><input class="audf1" value="00" /></td>
+                <td><input class="audc1" value="00" /></td>
+            </tr>
+            <tr>
+                <td><input class="audf2" value="00" /></td>
+                <td><input class="audc2" value="00" /></td>
+            </tr>
+            <tr>
+                <td><input class="audf3" value="00" /></td>
+                <td><input class="audc3" value="00" /></td>
+            </tr>
+            <tr>
+                <td><input class="audf4" value="00" /></td>
+                <td><input class="audc4" value="00" /></td>
+            </tr>
+            <tr>
+                <td><input class="audctl" value="00" /></td>
+            </tr>
+        </table>
+
+        <div style="float: left">
+            <pre id="sap_headers"></pre>
+        </div>
+        <br style="clear:both" />
     </div>
     sample rate: <select class="sample_rate">
         <option value="44100">44100</option>
