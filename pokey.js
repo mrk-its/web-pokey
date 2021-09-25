@@ -395,17 +395,16 @@ class FIRHalfBandFilter extends FIRFilter {
   get() {
     let len = this.buffer.length;
     let mid = len / 2 | 0;
-    let acc = 0.0;
+    let acc = 0.5 * this.buffer[(this.current_pos + mid) % len];
     var j = this.current_pos;
-    var k = (this.current_pos + this.buffer.length - 1) % this.buffer.length
-    for (var i = 0; i < len ; i+=2) {
+    var k = (this.current_pos + this.coefficients.length - 1) % this.buffer.length
+    for (var i = 0; i < mid ; i+=2) {
       acc += this.coefficients[i] * (this.buffer[j] + this.buffer[k])
       j += 2;
       if (j >= len) j -= len;
       k -= 2;
       if (k < 0) k += len;
     }
-    acc += 0.5 * this.buffer[(this.current_pos + mid) % len]
     return acc;
   }
 }

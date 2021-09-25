@@ -45,7 +45,7 @@ function createAnalyser(audioContext) {
         var offset = null;
         scopeCanvasCtx.moveTo(0, scopeCanvas.height / 2);
         for (var i = 0; i < bufferLength; i++) {
-            var v = dataArray[i] / 4
+            var v = dataArray[i]
             if(offset == null && last_sample != null && last_sample < 0.0 && v >= 0.0) {
                 offset = x;
             }
