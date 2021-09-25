@@ -54,10 +54,6 @@ async function init(latencyHint) {
         let title_parts = [
             sapPlayer.headers.AUTHOR, sapPlayer.headers.NAME
         ].filter((x) => x)
-        $("#details").click(e => {
-            e.preventDefault()
-            $(e.target).parent().toggleClass("hidden")
-        })
         $("#player .title").text(title_parts.join(" / "))
         $("body").toggleClass("stereo", is_ok && sapPlayer.headers.STEREO || false)
         $("#sap_error").text(sapPlayer.error_message);
@@ -181,7 +177,12 @@ async function init(latencyHint) {
         seek[0].max = data.frame_cnt > 0 ? data.frame_cnt - 1 : 0;
         seek.val(data.current_frame);
         position_info.text(`${data.current_frame} / ${data.frame_cnt}`)
-    });
+    })
+
+    $("#details").click(e => {
+        e.preventDefault()
+        $(e.target).parent().toggleClass("hidden")
+    })
 
     let tick = () => {
         sapPlayer.tick();
