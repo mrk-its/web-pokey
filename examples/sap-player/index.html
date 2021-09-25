@@ -10,7 +10,7 @@
 
     </script>
     <style>
-        #player > * {
+        #player > *, #details > * {
             margin: 1em;
         }
         #player .title {
@@ -47,6 +47,9 @@
         .debug {
             color: gray;
         }
+        .hidden > div {
+            display: none
+        }
     </style>
 </head>
 
@@ -72,80 +75,89 @@
         </div>
     </div>
     <div id="sap_error"></div>
-    <div style="position: relative">
-        <table class="pokey_regs" id="pokey_0">
-            <tr>
-                <td></td>
-                <td>AUDF</td>
-                <td>AUDC</td>
-            </tr>
-            <tr>
-                <td>channel 1</td>
-                <td><input class="audf1" value="00" /></td>
-                <td><input class="audc1" value="00" /></td>
-            </tr>
-            <tr>
-                <td>channel 2</td>
-                <td><input class="audf2" value="00" /></td>
-                <td><input class="audc2" value="00" /></td>
-            </tr>
-            <tr>
-                <td>channel 3</td>
-                <td><input class="audf3" value="00" /></td>
-                <td><input class="audc3" value="00" /></td>
-            </tr>
-            <tr>
-                <td>channel 4</td>
-                <td><input class="audf4" value="00" /></td>
-                <td><input class="audc4" value="00" /></td>
-            </tr>
-            <tr>
-                <td>AUDCTL</td>
-                <td><input class="audctl" value="00" /></td>
-            </tr>
-        </table>
+    <div id="details" class="hidden">
+        <a href="#" id="details">details</a>
 
-        <table class="pokey_regs" id="pokey_1">
-            <tr>
-                <td>AUDF</td>
-                <td>AUDC</td>
-            </tr>
-            <tr>
-                <td><input class="audf1" value="00" /></td>
-                <td><input class="audc1" value="00" /></td>
-            </tr>
-            <tr>
-                <td><input class="audf2" value="00" /></td>
-                <td><input class="audc2" value="00" /></td>
-            </tr>
-            <tr>
-                <td><input class="audf3" value="00" /></td>
-                <td><input class="audc3" value="00" /></td>
-            </tr>
-            <tr>
-                <td><input class="audf4" value="00" /></td>
-                <td><input class="audc4" value="00" /></td>
-            </tr>
-            <tr>
-                <td><input class="audctl" value="00" /></td>
-            </tr>
-        </table>
 
-        <div style="float: left">
-            <pre id="sap_headers"></pre>
+        <div style="position: relative">
+            <table class="pokey_regs" id="pokey_0">
+                <tr>
+                    <td></td>
+                    <td>AUDF</td>
+                    <td>AUDC</td>
+                </tr>
+                <tr>
+                    <td>channel 1</td>
+                    <td><input class="audf1" value="00" /></td>
+                    <td><input class="audc1" value="00" /></td>
+                </tr>
+                <tr>
+                    <td>channel 2</td>
+                    <td><input class="audf2" value="00" /></td>
+                    <td><input class="audc2" value="00" /></td>
+                </tr>
+                <tr>
+                    <td>channel 3</td>
+                    <td><input class="audf3" value="00" /></td>
+                    <td><input class="audc3" value="00" /></td>
+                </tr>
+                <tr>
+                    <td>channel 4</td>
+                    <td><input class="audf4" value="00" /></td>
+                    <td><input class="audc4" value="00" /></td>
+                </tr>
+                <tr>
+                    <td>AUDCTL</td>
+                    <td><input class="audctl" value="00" /></td>
+                </tr>
+            </table>
+
+            <table class="pokey_regs" id="pokey_1">
+                <tr>
+                    <td>AUDF</td>
+                    <td>AUDC</td>
+                </tr>
+                <tr>
+                    <td><input class="audf1" value="00" /></td>
+                    <td><input class="audc1" value="00" /></td>
+                </tr>
+                <tr>
+                    <td><input class="audf2" value="00" /></td>
+                    <td><input class="audc2" value="00" /></td>
+                </tr>
+                <tr>
+                    <td><input class="audf3" value="00" /></td>
+                    <td><input class="audc3" value="00" /></td>
+                </tr>
+                <tr>
+                    <td><input class="audf4" value="00" /></td>
+                    <td><input class="audc4" value="00" /></td>
+                </tr>
+                <tr>
+                    <td><input class="audctl" value="00" /></td>
+                </tr>
+            </table>
+
+            <div style="float: left">
+                <pre id="sap_headers"></pre>
+            </div>
+            <br style="clear:both" />
         </div>
-        <br style="clear:both" />
+        <div>
+            sample rate: <select class="sample_rate">
+                <option value="44100">44100</option>
+                <option value="48000">48000</option>
+                <option value="56000">56000</option>
+            </select>
+            latency hint: <input id="latency-hint" value="playback" />
+        </div>
+        <div class="debug">
+            <p>Latency: <span id="latency"></span></p>
+            <p>UserAgent: <span id="ua"></span></p>
+        </div>
     </div>
-    sample rate: <select class="sample_rate">
-        <option value="44100">44100</option>
-        <option value="48000">48000</option>
-        <option value="56000">56000</option>
-    </select>
-    latency hint: <input id="latency-hint" value="playback" />
-    <div class="debug">
-        <p>Latency: <span id="latency"></span></p>
-        <p>UserAgent: <span id="ua"></span></p>
-    </div>
+
+
 </body>
 
 </html>

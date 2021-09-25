@@ -54,8 +54,12 @@ async function init(latencyHint) {
         let title_parts = [
             sapPlayer.headers.AUTHOR, sapPlayer.headers.NAME
         ].filter((x) => x)
+        $("#details").click(e => {
+            e.preventDefault()
+            $(e.target).parent().toggleClass("hidden")
+        })
         $("#player .title").text(title_parts.join(" / "))
-        $("body").toggleClass("stereo", is_ok && sapPlayer.headers.STEREO)
+        $("body").toggleClass("stereo", is_ok && sapPlayer.headers.STEREO || false)
         $("#sap_error").text(sapPlayer.error_message);
         $("#sap_headers").text(sapPlayer.raw_headers);
     }
