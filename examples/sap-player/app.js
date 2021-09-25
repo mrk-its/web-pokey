@@ -4,7 +4,7 @@ const _reg_names = ["audf1", "audc1", "audf2", "audc2", "audf3", "audc3", "audf4
 const reg_names = [..._reg_names, ..._reg_names]
 
 function get_sample_rate() {
-    return parseInt(localStorage.sampleRate || 56000)
+    return parseInt(localStorage.sampleRate2 || 56000)
 }
 
 async function init(latencyHint) {
@@ -29,7 +29,7 @@ async function init(latencyHint) {
 
     $("select.sample_rate").val(get_sample_rate()).change((e) => {
         let val = $(e.target).val()
-        localStorage.sampleRate = val
+        localStorage.sampleRate2 = val
         window.location.reload(true)
     })
 
