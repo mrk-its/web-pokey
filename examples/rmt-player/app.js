@@ -1,10 +1,54 @@
 import { createAnalyser } from '../utils/analyser.js'
-import { SAPPlayer} from './sap.js'
+import { RMTSong} from './rmt.js'
 const _reg_names = ["audf1", "audc1", "audf2", "audc2", "audf3", "audc3", "audf4", "audc4", "audctl"];
 const reg_names = [..._reg_names, ..._reg_names]
 
 function get_sample_rate() {
     return parseInt(localStorage.sampleRate2 || 56000)
+}
+
+const NOTE_KEYMAP = [
+    [90], // 0
+    [83], //1
+    [88], //2
+    [68], //3
+    [67], //4
+    [86], //5
+    [71], //6
+    [66], //7
+    [72], //8
+    [78], //9
+    [74], //10
+    [77], //11
+    [188,81], //12
+    [76,50], //13
+    [190,87], //14
+    [186,51], //15
+    [191,69], //16
+    [82], //17
+    [53], //18
+    [84], //19
+    [54], //20
+    [89], //21
+    [55], //22
+    [85], //23
+    [73], //24
+    [57], //25
+    [79], //26
+    [48], //27
+    [80], //28
+    [219], //29
+    [187], //30
+    [221] //31
+];
+
+function createNoteKeyMap(kmap) {
+    const map = [];
+    _.each(kmap, (v,note) => {
+        _.each(v, kcode => { map[kcode] = note })
+    })
+    map[32] = 62; // empty row
+    return map;
 }
 
 async function init(latencyHint) {
@@ -15,6 +59,7 @@ async function init(latencyHint) {
         latencyHint,
     }
     const audioContext = new AudioContext(audioContextParams)
+
     console.info("created audioContext with:", audioContextParams)
 
     document.addEventListener('visibilitychange', function() {
@@ -35,29 +80,33 @@ async function init(latencyHint) {
 
     await audioContext.audioWorklet.addModule('../../pokey.js')
     const pokeyNode = new AudioWorkletNode(audioContext, 'POKEY', {
-        outputChannelCount: [2],
+        // outputChannelCount: [2],
     })
     var analyser = createAnalyser(audioContext);
     analyser.node.connect(audioContext.destination);
     // pokeyNode.connect(audioContext.destination)
     pokeyNode.connect(analyser.node);
 
-    let sapPlayer = new SAPPlayer(audioContext, pokeyNode);
-    window.sapPlayer = sapPlayer;
+    let rmtSong = new RMTSong(audioContext, pokeyNode);
+    window.rmtSong = rmtSong
 
-    function load_sap(buffer) {
-        let is_ok = sapPlayer.load(buffer);
+    function load(buffer) {
+        let is_ok = rmtSong.load(buffer);
         if(!is_ok) {
-            $("#sap_error").text(sapPlayer.error_message);
+            $("#sap_error").text(rmtSong.error_message);
             return
         }
-        let title_parts = [
-            sapPlayer.headers.AUTHOR, sapPlayer.headers.NAME
-        ].filter((x) => x)
-        $("#player .title").text(title_parts.join(" / "))
-        $("body").toggleClass("stereo", is_ok && sapPlayer.headers.STEREO || false)
-        $("#sap_error").text(sapPlayer.error_message);
-        $("#sap_headers").text(sapPlayer.raw_headers);
+        rmtSong.play()
+
+        let instr_selector = $("#instrument")
+        instr_selector.empty()
+        for(const instr of rmtSong.instruments) {
+            if(instr)
+                $("<option>").val(instr.index).text(`${hex2(instr.index)}: ${instr.name}`).appendTo(instr_selector)
+        }
+        instr_selector.change()
+        $("#player .title").text(rmtSong.name)
+        $("#sap_error").text(rmtSong.error_message);
     }
 
     function play_url(url) {
@@ -66,7 +115,7 @@ async function init(latencyHint) {
         }
         fetch(url)
             .then(response => response.arrayBuffer())
-            .then(load_sap)
+            .then(load)
             .then(() => $('input[type=file]').val(''))
             .catch(err => $("#sap_error").text(err))
     }
@@ -110,7 +159,7 @@ async function init(latencyHint) {
     $('#ua').text(window.navigator.userAgent);
     $('#pokey_regs input').change(send_regs);
     $('body').click(() => {
-        sapPlayer.audio_context.resume();
+        audioContext.resume();
     })
     $(window).bind("hashchange", hash_changed);
 
@@ -120,7 +169,7 @@ async function init(latencyHint) {
     }
     function handle_file(file) {
         file.arrayBuffer()
-            .then(load_sap)
+            .then(load)
             .then(() => document.location.hash = '')
     }
     $('input[type=file]').on("change", event => {
@@ -145,14 +194,13 @@ async function init(latencyHint) {
         }
     })
 
-    let seek = $('#player .seek').bind('input', event => sapPlayer.seek(event.target.value));
     let gain = $('#player .gain').val(localStorage.volume_db || 0).on('input',
         event => {
             let db = parseFloat(event.target.value)
             let min = parseFloat(event.target.min)
             let gain = db > min ? Math.pow(10, db / 20) : 0
             console.log("gain", db, "db (", gain, ")")
-            sapPlayer.pokey_node.parameters.get('gain').value = gain
+            pokeyNode.parameters.get('gain').value = gain
             localStorage.volume_db = db
             $("span.volume_db").text(`${db.toFixed(1)}dB`)
         }
@@ -160,13 +208,13 @@ async function init(latencyHint) {
 
     let position_info = $('#player .position-info');
 
-    $('#player .play').click(() => sapPlayer.play());
-    $('#player .pause').click(() => sapPlayer.pause());
-    $('#player .stop').click(() => sapPlayer.stop());
-    $('#player .prev').click(() => sapPlayer.prev());
-    $('#player .next').click(() => sapPlayer.next());
+    $('#player .play').click(() => rmtSong.play());
+    // $('#player .pause').click(() => sapPlayer.pause());
+    $('#player .stop').click(() => rmtSong.stop());
+    // $('#player .prev').click(() => sapPlayer.prev());
+    // $('#player .next').click(() => sapPlayer.next());
 
-    $(window).bind("sap_player", event => {
+    $(window).bind("rmt_player", event => {
         let data = event.originalEvent.data;
         if(data.pokey_regs) {
             let regs = Array.from(data.pokey_regs);
@@ -174,9 +222,7 @@ async function init(latencyHint) {
                 set_reg(i < 9 ? '0' : '1', reg_names[i], v);
             })
         }
-        seek[0].max = data.frame_cnt > 0 ? data.frame_cnt - 1 : 0;
-        seek.val(data.current_frame);
-        position_info.text(`${data.current_frame} / ${data.frame_cnt}`)
+        position_info.text(`${data.current_frame}`)
     })
 
     $("#details").click(e => {
@@ -184,13 +230,78 @@ async function init(latencyHint) {
         $(e.target).parent().toggleClass("hidden")
     })
 
+    function instrument_details(instrument) {
+        let size = instrument.table.length + instrument.envelope.length + 12;
+        let cont = $('<div>')
+        let blocks = [' ', '▂', '▄', '▆', '█']
+
+        let _ef = k => Array.from(instrument.envelope).filter((v, i) => i % 3 == k)
+
+        let vs = _ef(0).map(v => (v & 0xf))
+        let v1 = vs.map( v => blocks[Math.min(Math.max(v - 12, 0), 4)]).join("")
+        let v2 = vs.map( v => blocks[Math.min(Math.max(v - 8, 0), 4)]).join("")
+        let v3 = vs.map( v => blocks[Math.min(Math.max(v - 4, 0), 4)]).join("")
+        let v4 = vs.map( v => blocks[Math.min(v, 4)]).join("")
+
+
+        let volumes = vs.map(v => v.toString(16)).join("")
+        let distortions = _ef(1).map(v => (((v >> 1) & 7) * 2).toString(16)).join("")
+        let commands = _ef(1).map(v => ((v >> 4) & 7).toString(16)).join("")
+        let xs = _ef(2).map(v => (v >> 4).toString(16)).join("")
+        let ys = _ef(2).map(v => (v & 0xf).toString(16)).join("")
+
+        let i = instrument
+        let h2 = hex2
+
+        $("<pre>").text(`
+NAME: ${i.name} (size: ${size} bytes)
+
+ EFFECT: ${'  '         }  ENVELOPE: ${'  '        }   TABLE:
+  DELAY: ${h2(i.delay)  }      ELEN: ${h2(i.elen)  }    TLEN: ${h2(i.tlen)}
+VIBRATO: ${h2(i.vibrato)}       EGO: ${h2(i.ego)   }     TGO: ${h2(i.tgo)}
+ FSHIFT: ${h2(i.fshift) }    VSLIDE: ${h2(i.vslide)}    TSPD: ${h2(i.tspd)}
+         ${'  '         }      VMIN: ${h2(i.vmin)  }    TYPE: ${h2(i.ttype)}
+         ${'  '         }            ${'  '        }    MODE: ${h2(i.tmode)}
+     ${v1}
+     ${v2}
+     ${v3}
+     ${v4}
+VOL: ${volumes}
+DIS: ${distortions}
+CMD: ${commands}
+ X/: ${xs}
+ Y\\: ${ys}
+
+TABLE OF NOTES: |${instrument.table.map(hex2).join(" ")}|
+        `).appendTo(cont)
+
+        return cont;
+    }
+
+    let instr_selector = $("#instrument").change(e => {
+        let instr_index = parseInt($(e.target).val())
+        let instrument = rmtSong.instruments[instr_index]
+        instrument_details(instrument).appendTo($("#instrument-details").empty())
+    })
+
+    const noteKeyMap = createNoteKeyMap(NOTE_KEYMAP)
+    $(window).bind("keydown", event => {
+        audioContext.resume();
+        let note = noteKeyMap[event.keyCode || event.which];
+        if(note >=0 && note < 61) {
+            let instr_index = parseInt($("#instrument").val())
+            let octave = parseInt($("#octave").val())
+            rmtSong.tune(instr_index, octave + note)
+        }
+    })
+
     let tick = () => {
-        sapPlayer.tick();
+        rmtSong.tick();
         analyser.draw();
         requestAnimationFrame(tick);
     }
     tick();
-    hash_changed();
+    hash_changed()
 }
 
 init("playback");
