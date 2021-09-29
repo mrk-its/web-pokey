@@ -1,5 +1,5 @@
 import { createAnalyser } from '../utils/analyser.js'
-import { RMTSong} from './rmt.js'
+import { RMTPlayer} from './rmt.js'
 const _reg_names = ["audf1", "audc1", "audf2", "audc2", "audf3", "audc3", "audf4", "audc4", "audctl"];
 const reg_names = [..._reg_names, ..._reg_names]
 
@@ -87,26 +87,26 @@ async function init(latencyHint) {
     // pokeyNode.connect(audioContext.destination)
     pokeyNode.connect(analyser.node);
 
-    let rmtSong = new RMTSong(audioContext, pokeyNode);
-    window.rmtSong = rmtSong
+    let rmt_player = new RMTPlayer(audioContext, pokeyNode);
+    window.rmt_player = rmt_player
 
     function load(buffer) {
-        let is_ok = rmtSong.load(buffer);
+        let is_ok = rmt_player.load(buffer);
         if(!is_ok) {
-            $("#sap_error").text(rmtSong.error_message);
+            $("#sap_error").text(rmt_player.error_message);
             return
         }
-        rmtSong.play()
+        rmt_player.play()
 
         let instr_selector = $("#instrument")
         instr_selector.empty()
-        for(const instr of rmtSong.instruments) {
+        for(const instr of rmt_player.instruments) {
             if(instr)
                 $("<option>").val(instr.index).text(`${hex2(instr.index)}: ${instr.name}`).appendTo(instr_selector)
         }
         instr_selector.change()
-        $("#player .title").text(rmtSong.name)
-        $("#sap_error").text(rmtSong.error_message);
+        $("#player .title").text(rmt_player.name)
+        $("#sap_error").text(rmt_player.error_message);
     }
 
     function play_url(url) {
@@ -208,9 +208,9 @@ async function init(latencyHint) {
 
     let position_info = $('#player .position-info');
 
-    $('#player .play').click(() => rmtSong.play());
+    $('#player .play').click(() => rmt_player.play());
     // $('#player .pause').click(() => sapPlayer.pause());
-    $('#player .stop').click(() => rmtSong.stop());
+    $('#player .stop').click(() => rmt_player.stop());
     // $('#player .prev').click(() => sapPlayer.prev());
     // $('#player .next').click(() => sapPlayer.next());
 
@@ -225,7 +225,7 @@ async function init(latencyHint) {
         position_info.text(`${data.current_frame}`)
     })
 
-    $("#details").click(e => {
+    $("#details > a.toggle").click(e => {
         e.preventDefault()
         $(e.target).parent().toggleClass("hidden")
     })
@@ -247,6 +247,7 @@ async function init(latencyHint) {
         let volumes = vs.map(v => v.toString(16)).join("")
         let distortions = _ef(1).map(v => (((v >> 1) & 7) * 2).toString(16)).join("")
         let commands = _ef(1).map(v => ((v >> 4) & 7).toString(16)).join("")
+        let filters = _ef(1).map(v => v & 128 ? "." : " ").join("")
         let xs = _ef(2).map(v => (v >> 4).toString(16)).join("")
         let ys = _ef(2).map(v => (v & 0xf).toString(16)).join("")
 
@@ -271,6 +272,7 @@ DIS: ${distortions}
 CMD: ${commands}
  X/: ${xs}
  Y\\: ${ys}
+  F: ${filters}
 
 TABLE OF NOTES: |${instrument.table.map(hex2).join(" ")}|
         `).appendTo(cont)
@@ -280,7 +282,7 @@ TABLE OF NOTES: |${instrument.table.map(hex2).join(" ")}|
 
     let instr_selector = $("#instrument").change(e => {
         let instr_index = parseInt($(e.target).val())
-        let instrument = rmtSong.instruments[instr_index]
+        let instrument = rmt_player.instruments[instr_index]
         instrument_details(instrument).appendTo($("#instrument-details").empty())
     })
 
@@ -291,12 +293,12 @@ TABLE OF NOTES: |${instrument.table.map(hex2).join(" ")}|
         if(note >=0 && note < 61) {
             let instr_index = parseInt($("#instrument").val())
             let octave = parseInt($("#octave").val())
-            rmtSong.tune(instr_index, octave + note)
+            rmt_player.tune(instr_index, octave + note)
         }
     })
 
     let tick = () => {
-        rmtSong.tick();
+        rmt_player.tick();
         analyser.draw();
         requestAnimationFrame(tick);
     }
