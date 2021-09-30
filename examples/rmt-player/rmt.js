@@ -46,83 +46,50 @@ const noteBaseNames = ['C-', 'C#', 'D-', 'D#', 'E-', 'F-', 'F#', 'G-', 'G#', 'A-
 const noteNames = _.times(61,note => `${noteBaseNames[note % 12]}${Math.floor(note/12)+1}`)
 
 class RMTTrack {
-    constructor(index, data) {
+    constructor(index, data, track_length) {
         this.index = index
         this.data = data
         this.steps = []
-        this.unwinded_steps = null
 
-        for(var i=0; i<this.data.length; i++) {
+        var i = 0
+        var speed = null
+
+        while(this.steps.length < track_length) {
             let note = this.data[i] & 0x3f
             let bits67 = ((this.data[i] & 0xc0) >> 6)
+            i += 1
+
             if(note <= 0x3c) {
-                let volume = (this.data[i+1] & 3) | (bits67 << 2)
-                let instrument = this.data[i+1] >> 2
-                i += 1
-                this.steps.push({name: "note", noteName: noteNames[note], note, instrument, volume})
+                let volume = (this.data[i] & 3) | (bits67 << 2)
+                let instrument = this.data[i++] >> 2
+                this.steps.push({name: "note", noteName: noteNames[note], note, instrument, volume, speed})
+                speed = null;
             } else if(note == 0x3d) {
-                let volume = (this.data[i+1] & 3) | (bits67 << 2)
-                this.steps.push({name: "vol-only", instrument: null, volume})
+                let volume = (this.data[i++] & 3) | (bits67 << 2)
+                this.steps.push({name: "vol-only", instrument: null, volume, speed})
+                speed = null;
             } else if(note == 0x3e) {
                 let pause = bits67
                 if(!pause) {
-                    pause = this.data[++i];
+                    pause = this.data[i++];
                 }
-                this.steps.push({name: "pause", pause})
+                for(let n=0; n<pause && this.steps.length < track_length; n++) {
+                    this.steps.push({name: "pause", speed})
+                    speed = null
+                }
             } else if(note == 0x3f) {
-                if(this.index == 12) {
-                    console.log("HERE", data[i], data[i+1], data[i+2])
-                }
                 if(bits67 == 0) {
-                    this.steps.push({name: "speed", speed: this.data[++i]})
-                    console.log(`SPEED: ${this.steps[this.steps.length - 1]}`)
+                    speed = this.data[i++]
                 } else if(bits67 == 2) {
-                    this.steps.push({name: "goto", line: this.data[++i]})
+                    i = this.data[i]
                 } else if(bits67 == 3) {
-                    this.steps.push({name: "end of track"})
+                    i = 0;
                 }
             }
         }
     }
-    get_entry(index, track_length) {
-        if(this.unwinded_steps == null) {
-            this.unwinded_steps = new Array(track_length)
-            var src_index = 0
-            var dst_index = 0
-            var speed = null
-            while(dst_index < track_length) {
-                let step = this.steps[src_index++]
-                if(step.name == "note" || step.name == "vol-only") {
-                    this.unwinded_steps[dst_index++] = {...step, speed}
-                    speed = null
-                } else if(step.name == "pause") {
-                    for(var i=0; i<step.pause && dst_index < track_length; i++) {
-                        this.unwinded_steps[dst_index++] = {name: "pause", pause: 1, speed}
-                        speed = null
-                    }
-                } else if(step.name == "goto") {
-                    src_index = step.line
-                    if(speed!=null) {
-                        this.unwinded_steps[dst_index++] = {name: "pause", pause: 1, speed}
-                        speed = null
-                    }
-                } else if(step.name == "end of track") {
-                    src_index = 0
-                    if(speed!=null) {
-                        this.unwinded_steps[dst_index++] = {name: "pause", pause: 1, speed}
-                        speed = null
-                    }
-                } else if(step.name == "speed") {
-                    if(speed!=null) {
-                        this.unwinded_steps[dst_index++] = {name: "pause", pause: 1, speed}
-                        speed = null
-                    }
-                    speed = step.speed
-                }
-                src_index = src_index % this.steps.length
-            }
-        }
-        return this.unwinded_steps[index]
+    get_entry(index) {
+        return this.steps[index]
     }
 }
 
@@ -159,7 +126,7 @@ class RMTSong {
             this.names = []
         }
 
-        this.name = this.names[0] || ''
+        this.name = this.names[0] || 'no name'
 
         let rmt_data = blocks[0].data;
         let rmt_offset = blocks[0].offset;
@@ -184,21 +151,26 @@ class RMTSong {
         let track_pointers_table_hi = ptr(0xc)
         let song_track_list = ptr(0xe)
 
-        console.log(this.names, rmt_data, rmt_offset)
-        console.log(`n_channels: ${this.n_channels}`)
-        console.log(`song_speed: ${this.song_speed}`)
-        console.log(`instrument_freq: ${this.instrument_freq}`)
-        console.log(`format_version: ${this.format_version}`)
-        console.log(`song_track_list: ${song_track_list}`)
+        console.info(this.names, rmt_data, rmt_offset)
+        console.info(`n_channels: ${this.n_channels}`)
+        console.info(`song_speed: ${this.song_speed}`)
+        console.info(`instrument_freq: ${this.instrument_freq}`)
+        console.info(`format_version: ${this.format_version}`)
+        console.info(`song_track_list: ${song_track_list}`)
+
+        // console.log(`instrument_pointers_offs: ${instrument_pointers_offs}`)
+        // console.log(`track_pointers_table_lo: ${track_pointers_table_lo}`)
+        // console.log(`track_pointers_table_hi: ${track_pointers_table_hi}`)
+        // console.log(`song_track_list ${song_track_list}`)
 
         let n_tracks = track_pointers_table_hi - track_pointers_table_lo
         let n_instr = (track_pointers_table_lo - instrument_pointers_offs) / 2
         let track_ptr = i => rmt_data[track_pointers_table_hi + i] * 256 + rmt_data[track_pointers_table_lo + i] - rmt_offset
         for(var i=0; i < n_tracks; i++) {
             let start = track_ptr(i)
-            let end = i < n_tracks -1 ? track_ptr(i+1) : this.song_track_list;
+            let end = i < n_tracks - 1 ? track_ptr(i+1) : song_track_list;
             if(start >= 0 && end > start) {
-                this.tracks[i] = new RMTTrack(i, rmt_data.subarray(start, end))
+                this.tracks[i] = new RMTTrack(i, rmt_data.subarray(start, end), this.track_length)
             }
         }
         for(var i=0; i<n_instr; i++) {
@@ -251,7 +223,7 @@ class RMTTune {
         this.epos = 0
         this.tpos = 0
         this.is_repeating = false
-        this.volume = 15  // volume
+        this.volume = volume
         this.tcnt = 0
         this.vib_table = VIB_TABLE[instrument.vibrato]
         this.vib_index = 0
@@ -404,6 +376,9 @@ function hex2(v) {
     return t.slice(t.length - 2);
 }
 
+function lalign(txt, width) {
+    return (txt + '                        ').substring(0, width)
+}
 
 export class RMTPlayer {
     constructor(audio_context, pokey_node) {
@@ -434,8 +409,8 @@ export class RMTPlayer {
 
         this.instr_pos = 0
         this.track_pos = 0
-        this.tracks_list_pos = 1
-        this.repeat_track = true
+        this.tracks_list_pos = 0
+        this.repeat_track = false
         this.load_tracks()
         this.load_tracks_entries()
 
@@ -482,14 +457,13 @@ export class RMTPlayer {
 
     load_tracks_entries() {
         // load this.track_pos entries
-        console.log(`track position: ${this.track_pos}`)
         let entries = this.current_tracks.map(track => track && track.get_entry(this.track_pos, this.song.track_length))
-        console.log(entries.map((e) => e && `${e.noteName}`).slice(0, 4))
+        let entry_txt = entries.map((e) => lalign(e && e.noteName || '-', 10)).slice(0, 4).join(" | ")
+        console.log(`${hex2(this.track_pos)} ${entry_txt}`)
         _.each(entries, (e, channel) => {
             if(e) {
                 if(e.speed) {
                     this.song_speed = e.speed
-                    console.info(`set speed to ${this.song_speed}`)
                 }
                 if(e.name == "note") {
                     this.tune(channel, e.note, e.instrument, e.volume)
