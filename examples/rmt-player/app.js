@@ -293,7 +293,7 @@ TABLE OF NOTES: |${instrument.table.map(hex2).join(" ")}|
         if(note >=0 && note < 61) {
             let instr_index = parseInt($("#instrument").val())
             let octave = parseInt($("#octave").val())
-            rmt_player.tune(instr_index, octave + note)
+            rmt_player.tune(1, instr_index, octave + note, 15)
         }
     })
 
