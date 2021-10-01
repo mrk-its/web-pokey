@@ -42,6 +42,25 @@ const VIB_TABLE = [
     [1, 1, 0, -1, -1, -1, -1, 0, 1, 1],
 ]
 
+const VOLUME_TAB = [
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+	0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x02, 0x02,
+	0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x03, 0x03, 0x03,
+	0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x02, 0x02, 0x03, 0x03, 0x03, 0x03, 0x04, 0x04,
+	0x00, 0x00, 0x01, 0x01, 0x01, 0x02, 0x02, 0x02, 0x03, 0x03, 0x03, 0x04, 0x04, 0x04, 0x05, 0x05,
+	0x00, 0x00, 0x01, 0x01, 0x02, 0x02, 0x02, 0x03, 0x03, 0x04, 0x04, 0x04, 0x05, 0x05, 0x06, 0x06,
+	0x00, 0x00, 0x01, 0x01, 0x02, 0x02, 0x03, 0x03, 0x04, 0x04, 0x05, 0x05, 0x06, 0x06, 0x07, 0x07,
+	0x00, 0x01, 0x01, 0x02, 0x02, 0x03, 0x03, 0x04, 0x04, 0x05, 0x05, 0x06, 0x06, 0x07, 0x07, 0x08,
+	0x00, 0x01, 0x01, 0x02, 0x02, 0x03, 0x04, 0x04, 0x05, 0x05, 0x06, 0x07, 0x07, 0x08, 0x08, 0x09,
+	0x00, 0x01, 0x01, 0x02, 0x03, 0x03, 0x04, 0x05, 0x05, 0x06, 0x07, 0x07, 0x08, 0x09, 0x09, 0x0A,
+	0x00, 0x01, 0x01, 0x02, 0x03, 0x04, 0x04, 0x05, 0x06, 0x07, 0x07, 0x08, 0x09, 0x0A, 0x0A, 0x0B,
+	0x00, 0x01, 0x02, 0x02, 0x03, 0x04, 0x05, 0x06, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0A, 0x0B, 0x0C,
+	0x00, 0x01, 0x02, 0x03, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0A, 0x0B, 0x0C, 0x0D,
+	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
+	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+]
+
 const noteBaseNames = ['C-', 'C#', 'D-', 'D#', 'E-', 'F-', 'F#', 'G-', 'G#', 'A-', 'A#', 'H-'];
 const noteNames = _.times(61,note => `${noteBaseNames[note % 12]}${Math.floor(note/12)+1}`)
 
@@ -60,13 +79,13 @@ class RMTTrack {
             i += 1
 
             if(note <= 0x3c) {
-                let volume = (this.data[i] & 3) | (bits67 << 2)
+                let volume = (this.data[i] & 3) << 2 | bits67
                 let instrument = this.data[i++] >> 2
                 this.steps.push({name: "note", noteName: noteNames[note], note, instrument, volume, speed})
                 speed = null;
             } else if(note == 0x3d) {
-                let volume = (this.data[i++] & 3) | (bits67 << 2)
-                this.steps.push({name: "vol-only", instrument: null, volume, speed})
+                let volume = (this.data[i++] & 3) << 2 | bits67
+                this.steps.push({name: "note", volume, speed})  // volume only
                 speed = null;
             } else if(note == 0x3e) {
                 let pause = bits67
@@ -200,7 +219,7 @@ class RMTInstrument {
         this.ttype = (data[4] >> 7) & 1
         this.audctl = data[5]
         this.vslide = data[6]
-        this.vmin = data[7]
+        this.vmin = data[7] >> 4  // bits 7-4, what about remaining ones?
         this.delay = data[8]
         this.vibrato = data[9]
         this.fshift = data[0xa]
@@ -214,16 +233,17 @@ class RMTInstrument {
 }
 
 class RMTTune {
-    constructor(channel, note, instrument, volume) {
+    constructor(channel, note, instrument) {
         this.instrument = instrument
         this.eff_delay = instrument.delay
         this.note = note
         this.outnote = note
-        this.channel = channel
+        this.channel = channel < 4 ? channel : channel - 4
+        this.regs_offset = channel < 4 ? 0 : 9
         this.epos = 0
         this.tpos = 0
         this.is_repeating = false
-        this.volume = volume
+
         this.tcnt = 0
         this.vib_table = VIB_TABLE[instrument.vibrato]
         this.vib_index = 0
@@ -258,11 +278,8 @@ class RMTTune {
         }
         var audf = null
         var note = null
-        var audc = Math.round(env_lvol * this.volume / 15) | (env_dist << 4)
 
-        if(this.is_repeating) {
-            this.volume = Math.max(this.instrument.vmin, this.volume - (this.instrument.vslide / 255))
-        }
+        var audc = VOLUME_TAB[player.getChannelVolume(this.channel) << 4 | env_lvol] | (env_dist << 4)
 
         this.epos += 1
         if(this.epos >= envelope.length / 3) {
@@ -309,7 +326,7 @@ class RMTTune {
                 break
             case 7:
                 if(env_xy == 0x80) {
-                    audc |= 0x10  // volume only
+                    audc |= 0xf0  // volume only
                 } else {
                     this.note = env_xy
                 }
@@ -372,7 +389,7 @@ class RMTTune {
 }
 
 function hex2(v) {
-    let t = '0' + v.toString(16);
+    let t = '0' + v.toString(16).toUpperCase();
     return t.slice(t.length - 2);
 }
 
@@ -411,20 +428,29 @@ export class RMTPlayer {
         this.track_pos = 0
         this.tracks_list_pos = 0
         this.repeat_track = false
+        this.channel_tone = []
+        this.channel_volume = []
+
         this.load_tracks()
         this.load_tracks_entries()
 
         this.frame_interval = 1 / this.frame_rate / this.song.instrument_freq
 
         console.log(song.name, song.instruments, song.tracks, song.track_lists)
-        this.current_tone = []
         return true
     }
 
     tune(channel, note, instr, volume) {
         let instrument = this.instruments[instr]
-        if(instrument)
-            this.current_tone[channel] = new RMTTune(channel, note, instrument, volume)
+        if(instrument) {
+            this.channel_tone[channel] = new RMTTune(channel, note, instrument)
+        }
+        this.channel_volume[channel] = (volume << 8) | 0x7f
+    }
+
+    getChannelVolume(channel) {
+        let vol = this.channel_volume[channel]
+        return isFinite(vol) ? vol >> 8 : 15
     }
 
     sendEvent(regs) {
@@ -458,7 +484,15 @@ export class RMTPlayer {
     load_tracks_entries() {
         // load this.track_pos entries
         let entries = this.current_tracks.map(track => track && track.get_entry(this.track_pos, this.song.track_length))
-        let entry_txt = entries.map((e) => lalign(e && e.noteName || '-', 10)).slice(0, 4).join(" | ")
+        let entry_txt = entries.map((e) => {
+            return (
+                lalign(e && e.noteName || '-', 3)
+                + ' '
+                + hex2(e && isFinite(e.instrument) && hex2(e.instrument) || '--')
+                + ' '
+                + (e && isFinite(e.volume) && e.volume.toString(16).toUpperCase() || '-')
+            )
+        }).slice(0, 4).join(" | ")
         console.log(`${hex2(this.track_pos)} ${entry_txt}`)
         _.each(entries, (e, channel) => {
             if(e) {
@@ -466,6 +500,8 @@ export class RMTPlayer {
                     this.song_speed = e.speed
                 }
                 if(e.name == "note") {
+                    // it may be volume-only note
+                    // with undefined note && instrument
                     this.tune(channel, e.note, e.instrument, e.volume)
                 }
             }
@@ -480,7 +516,7 @@ export class RMTPlayer {
         let currentTime = this.getCurrentTime();
         while(this.startTime + this.current_frame * this.frame_interval < currentTime + this.latency) {
             this.instr_pos += 1
-            if(this.instr_pos >= this.song_speed) {
+            if(this.instr_pos >= this.song_speed * this.song.instrument_freq) {
                 this.instr_pos = 0
                 this.track_pos += 1
                 if(this.track_pos >= this.song.track_length) {
@@ -502,17 +538,28 @@ export class RMTPlayer {
         }
     }
 
+    fade_volume(tone) {
+        if(tone.is_repeating) {
+            let v = this.channel_volume[tone.channel] >> 8
+            if(v && v > tone.instrument.vmin) {
+                this.channel_volume[tone.channel] -= tone.instrument.vslide
+            }
+        }
+    }
+
     step() {
         this.audctl = 0
         for(var i=0; i<4; i++) {
-            if(this.current_tone[i]) {
-                this.current_tone[i].play(this)
+            let tone = this.channel_tone[i]
+            if(tone) {
+                tone.play(this)
+                this.fade_volume(tone)
             }
         }
         this.new_audctl = this.audctl
         for(var i=0; i<4; i++) {
-            if(this.current_tone[i]) {
-                this.current_tone[i].post_play(this)
+            if(this.channel_tone[i]) {
+                this.channel_tone[i].post_play(this)
             }
         }
         this.pokey_regs[8] = this.new_audctl
@@ -547,7 +594,7 @@ export class RMTPlayer {
         this.state = "stopped";
         this.startTime = null;
         this.current_frame = 0;
-        this.current_tone = [];
+        this.channel_tone = [];
         for(var i=0; i<this.pokey_regs.length; i++) {
             this.pokey_regs[i] = 0;
         }
