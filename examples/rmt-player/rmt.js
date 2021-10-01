@@ -249,11 +249,14 @@ class RMTTune {
         this.vib_index = 0
         this.shiftfrq = 0
         this.filter = 1
+        this.pokey_idx = channel < 4 ? 0 : 1
     }
+
     play(player) {
         let env_idx = this.epos * 3
         let envelope = this.instrument.envelope
         let env_lvol = envelope[env_idx] & 0xf
+        let env_rvol = envelope[env_idx] >> 4
         var env_dist = ((envelope[env_idx + 1] >> 1) & 7) * 2
         let env_cmd = (envelope[env_idx + 1] >> 4) & 7
         let env_filter = (envelope[env_idx + 1] >> 7) & 1
@@ -279,7 +282,8 @@ class RMTTune {
         var audf = null
         var note = null
 
-        var audc = VOLUME_TAB[player.getChannelVolume(this.channel) << 4 | env_lvol] | (env_dist << 4)
+        let vol = this.channel < 4 ? env_lvol : env_rvol
+        var audc = VOLUME_TAB[player.getChannelVolume(this.channel) << 4 | vol] | (env_dist << 4)
 
         this.epos += 1
         if(this.epos >= envelope.length / 3) {
@@ -353,8 +357,8 @@ class RMTTune {
                 audf = (freq_table[note] + frqaddcmd2 + this.instrument.table[this.tpos] + this.shiftfrq) & 0xff
             }
         }
-        player.pokey_regs[this.channel * 2] = audf
-        player.pokey_regs[this.channel * 2 + 1] = audc
+        player.set_pokey_audf(this.channel, audf)
+        player.set_pokey_audc(this.channel, audc)
         player.audctl |= this.instrument.audctl
 
         this.tcnt = (this.tcnt + 1) % this.instrument.tspd
@@ -369,18 +373,18 @@ class RMTTune {
     post_play(player) {
         if(this.channel == 0 || this.channel == 1) {
             let next_ch = this.channel + 2
-            if(this.env_filter && player.pokey_regs[this.channel * 2 + 1] & 0xf) {
-                player.pokey_regs[next_ch * 2] = (player.pokey_regs[this.channel * 2] + this.filter) & 0xff
+            if(this.env_filter && player.gey_pokey_audc(this.channel) & 0xf) {
+                player.set_pokey_audf(next_ch, (player.get_pokey_audf(this.channel) + this.filter) & 0xff)
                 player.new_audctl |= (this.channel == 0 ? 4 : 2)
             }
         }
-        if(this.channel == 1 && (this.audctl == this.new_audctl) || this.channel == 3) {
-            if((this.env_dist == 6) && (player.pokey_regs[this.channel * 2 + 1] & 0xf) ) {
-                player.pokey_regs[(this.channel - 1) * 2] = BASS_LO[this.outnote]
-                player.pokey_regs[this.channel * 2] = BASS_HI[this.outnote]
+        if(this.channel == 1 && (player.audctl == player.new_audctl) || this.channel == 3 || this.channel == 3 + 4) {
+            if((this.env_dist == 6) && (player.get_pokey_audc(this.channel) & 0xf) ) {
+                player.set_pokey_audf((this.channel - 1), BASS_LO[this.outnote])
+                player.set_pokey_audf(this.channel, BASS_HI[this.outnote])
                 player.new_audctl |= (this.channel == 1 ? 0x50 : 0x28)
-                if((player.pokey_regs[(this.channel - 1) * 2 + 1] & 0x10) == 0) { // audc[ch-1]
-                    player.pokey_regs[(this.channel - 1) * 2 + 1] = 0
+                if((player.get_pokey_audc(this.channel - 1) & 0x10) == 0) { // audc[ch-1]
+                    player.set_pokey_audc(this.channel - 1, 0)
                 }
             }
         }
@@ -576,6 +580,27 @@ export class RMTPlayer {
         this.startTime = null;
         this.loadCurrentFrame();
     }
+
+    set_pokey_audf(channel, value) {
+        let offs = channel < 4 ? 0 : 9
+        this.pokey_regs[offs + channel * 2] = value
+    }
+
+    get_pokey_audf(channel, value) {
+        let offs = channel < 4 ? 0 : 9
+        return this.pokey_regs[offs + channel * 2]
+    }
+
+    set_pokey_audc(channel, value) {
+        let offs = channel < 4 ? 0 : 9
+        this.pokey_regs[offs + channel * 2 + 1] = value
+    }
+
+    get_pokey_audc(channel, value) {
+        let offs = channel < 4 ? 0 : 9
+        return this.pokey_regs[offs + channel * 2 + 1]
+    }
+
     _send_regs(regs) {
         let t = this.startTime != null ? this.startTime + this.current_frame * this.frame_interval : this.getCurrentTime() + this.latency;
         let msg = regs.slice().flatMap((v, i) => [i < 9 ? i : i - 9 + 16, v, t])
