@@ -423,17 +423,6 @@ export class RMTPlayer {
         let song = this.song = new RMTSong(buffer)
         this.song_speed = song.song_speed
         this.instruments = song.instruments
-
-        this.instr_pos = 0
-        this.track_pos = 0
-        this.tracks_list_pos = 0
-        this.repeat_track = false
-        this.channel_tone = []
-        this.channel_volume = []
-
-        this.load_tracks()
-        this.load_tracks_entries()
-
         this.frame_interval = 1 / this.frame_rate / this.song.instrument_freq
 
         console.log(song.name, song.instruments, song.tracks, song.track_lists)
@@ -571,6 +560,9 @@ export class RMTPlayer {
     }
 
     play() {
+        this.load_tracks()
+        this.load_tracks_entries()
+
         let currentTime = this.getCurrentTime();
         if(this.startTime == null) {
             this.startTime = currentTime - this.current_frame * this.frame_interval;
@@ -593,8 +585,15 @@ export class RMTPlayer {
     stop() {
         this.state = "stopped";
         this.startTime = null;
+
+        this.instr_pos = 0
+        this.track_pos = 0
+        this.tracks_list_pos = 0
+        this.repeat_track = false
+        this.channel_tone = []
+        this.channel_volume = []
+
         this.current_frame = 0;
-        this.channel_tone = [];
         for(var i=0; i<this.pokey_regs.length; i++) {
             this.pokey_regs[i] = 0;
         }
