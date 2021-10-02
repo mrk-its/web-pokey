@@ -80,7 +80,7 @@ async function init(latencyHint) {
 
     await audioContext.audioWorklet.addModule('../../pokey.js')
     const pokeyNode = new AudioWorkletNode(audioContext, 'POKEY', {
-        // outputChannelCount: [2],
+        outputChannelCount: [2],
     })
     var analyser = createAnalyser(audioContext);
     analyser.node.connect(audioContext.destination);
