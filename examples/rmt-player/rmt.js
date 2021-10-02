@@ -192,6 +192,10 @@ class RMTSong {
                 this.tracks[i] = new RMTTrack(i, rmt_data.subarray(start, end), this.track_length)
             }
         }
+        let empty_track = new RMTTrack(255, new Uint8Array([0x3e + 0x40]), this.track_length)
+        for(var i=n_tracks; i<256; i++) {
+            this.tracks[i] = empty_track
+        }
         for(var i=0; i<n_instr; i++) {
             let instr_offs = ptr(instrument_pointers_offs + i*2)
             if(instr_offs > 0) {
