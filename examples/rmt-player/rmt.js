@@ -64,6 +64,7 @@ const VOLUME_TAB = [
 const noteBaseNames = ['C-', 'C#', 'D-', 'D#', 'E-', 'F-', 'F#', 'G-', 'G#', 'A-', 'A#', 'H-'];
 const noteNames = _.times(61,note => `${noteBaseNames[note % 12]}${Math.floor(note/12)+1}`)
 
+
 class RMTTrack {
     constructor(index, data, track_length) {
         this.index = index
@@ -76,7 +77,7 @@ class RMTTrack {
         while(this.steps.length < track_length) {
             let note = this.data[i] & 0x3f
             let bits67 = ((this.data[i] & 0xc0) >> 6)
-            i += 1
+            i = (i + 1) % this.data.length
 
             if(note <= 0x3c) {
                 let volume = (this.data[i] & 3) << 2 | bits67
@@ -102,13 +103,16 @@ class RMTTrack {
                 } else if(bits67 == 2) {
                     i = this.data[i]
                 } else if(bits67 == 3) {
-                    i = 0;
+                    break;
                 }
             }
         }
     }
     get_entry(index) {
         return this.steps[index]
+    }
+    size() {
+        return this.steps.length
     }
 }
 
@@ -140,7 +144,8 @@ class RMTSong {
         }
         if(blocks.length>1) {
             let decoder = new TextDecoder()
-            this.names = decoder.decode(blocks[1].data).split("\0").filter(x => x)
+            console.log("HERE", blocks[1].data, decoder.decode(blocks[1].data))
+            this.names = decoder.decode(blocks[1].data).split("\0")
         } else {
             this.names = []
         }
@@ -177,17 +182,20 @@ class RMTSong {
         console.info(`format_version: ${this.format_version}`)
         console.info(`song_track_list: ${song_track_list}`)
 
-        // console.log(`instrument_pointers_offs: ${instrument_pointers_offs}`)
-        // console.log(`track_pointers_table_lo: ${track_pointers_table_lo}`)
-        // console.log(`track_pointers_table_hi: ${track_pointers_table_hi}`)
-        // console.log(`song_track_list ${song_track_list}`)
+        console.log(`instrument_pointers_offs: ${instrument_pointers_offs}`)
+        console.log(`track_pointers_table_lo: ${track_pointers_table_lo}`)
+        console.log(`track_pointers_table_hi: ${track_pointers_table_hi}`)
+        console.log(`song_track_list ${song_track_list}`)
 
         let n_tracks = track_pointers_table_hi - track_pointers_table_lo
+        console.log(`n_tracks: ${n_tracks}`)
         let n_instr = (track_pointers_table_lo - instrument_pointers_offs) / 2
         let track_ptr = i => rmt_data[track_pointers_table_hi + i] * 256 + rmt_data[track_pointers_table_lo + i] - rmt_offset
         for(var i=0; i < n_tracks; i++) {
             let start = track_ptr(i)
             let end = i < n_tracks - 1 ? track_ptr(i+1) : song_track_list;
+            if(end < 0) end = song_track_list
+            console.log(`track #${i}, ${start}, ${end}`)
             if(start >= 0 && end > start) {
                 this.tracks[i] = new RMTTrack(i, rmt_data.subarray(start, end), this.track_length)
             }
@@ -196,12 +204,12 @@ class RMTSong {
         for(var i=n_tracks; i<256; i++) {
             this.tracks[i] = empty_track
         }
+        let instr_name_offs = 1;
         for(var i=0; i<n_instr; i++) {
             let instr_offs = ptr(instrument_pointers_offs + i*2)
+            console.log(`${i} - ${instr_offs}`)
             if(instr_offs > 0) {
-                this.instruments.push(new RMTInstrument(i, this.names[i+1] || '', rmt_data.subarray(instr_offs)))
-            } else {
-                this.instruments.push(null)
+                this.instruments[i] = new RMTInstrument(i, this.names[instr_name_offs++] || '', rmt_data.subarray(instr_offs))
             }
         }
         for(var i = song_track_list; i < rmt_data.length; i += this.n_channels) {
@@ -362,7 +370,7 @@ class RMTTune {
         }
         player.set_pokey_audf(this.channel, audf)
         player.set_pokey_audc(this.channel, audc)
-        player.audctl |= this.instrument.audctl
+        player.update_pokey_audctl(this.pokey_idx, this.instrument.audctl)
 
         this.tcnt = (this.tcnt + 1) % this.instrument.tspd
         if(!this.tcnt) {
@@ -379,20 +387,14 @@ class RMTTune {
             let next_ch = this.channel + 2
             if(this.env_filter && player.get_pokey_audc(this.channel) & 0xf) {
                 player.set_pokey_audf(next_ch, (player.get_pokey_audf(this.channel) + this.filter) & 0xff)
-                player.set_pokey_audctl(
-                    this.pokey_idx,
-                    player.get_pokey_audctl(this.pokey_idx) | (pchannel == 0 ? 4 : 2)
-                )
+                player.update_pokey_audctl(this.pokey_idx, pchannel == 0 ? 4 : 2)
             }
         }
         if(pchannel == 1 && (player.get_pokey_audctl(this.pokey_idx) == prev_audctl) || pchannel == 3) {
             if((this.env_dist == 6) && (player.get_pokey_audc(this.channel) & 0xf) ) {
                 player.set_pokey_audf((this.channel - 1), BASS_LO[this.outnote])
                 player.set_pokey_audf(this.channel, BASS_HI[this.outnote])
-                player.set_pokey_audctl(
-                    this.pokey_idx,
-                    player.get_pokey_audctl(this.pokey_idx) | (pchannel == 1 ? 0x50 : 0x28)
-                )
+                player.update_pokey_audctl(this.pokey_idx, pchannel == 1 ? 0x50 : 0x28)
                 if((player.get_pokey_audc(this.channel - 1) & 0x10) == 0) { // audc[ch-1]
                     player.set_pokey_audc(this.channel - 1, 0)
                 }
@@ -480,32 +482,34 @@ export class RMTPlayer {
         this.current_tracks = Array.from(track_list).map( track_idx => {
             return this.song.tracks[track_idx]
         })
-        console.info(this.current_tracks)
+        this.current_tracks_size = this.current_tracks.reduce(
+            (size, track) => Math.min(size, track.size()),
+            this.song.track_length
+        )
+        console.info(this.current_tracks_size, this.current_tracks)
     }
 
     load_tracks_entries() {
         // load this.track_pos entries
-        let entries = this.current_tracks.map(track => track && track.get_entry(this.track_pos, this.song.track_length))
+        let entries = this.current_tracks.map(track => track.get_entry(this.track_pos))
         let entry_txt = entries.map((e) => {
             return (
-                lalign(e && e.noteName || '-', 3)
+                lalign(e.noteName || '-', 3)
                 + ' '
-                + hex2(e && isFinite(e.instrument) && hex2(e.instrument) || '--')
+                + (isFinite(e.instrument) && hex2(e.instrument) || '--')
                 + ' '
-                + (e && isFinite(e.volume) && e.volume.toString(16).toUpperCase() || '-')
+                + (isFinite(e.volume) && e.volume.toString(16).toUpperCase() || '-')
             )
-        }).slice(0, 4).join(" | ")
-        console.log(`${hex2(this.track_pos)} ${entry_txt}`)
+        }).join(" | ")
+        console.log(`#${hex2(this.track_pos)} ${entry_txt}`)
         _.each(entries, (e, channel) => {
-            if(e) {
-                if(e.speed) {
-                    this.song_speed = e.speed
-                }
-                if(e.name == "note") {
-                    // it may be volume-only note
-                    // with undefined note && instrument
-                    this.tune(channel, e.note, e.instrument, e.volume)
-                }
+            if(e.speed) {
+                this.song_speed = e.speed
+            }
+            if(e.name == "note") {
+                // it may be volume-only note
+                // with undefined note && instrument
+                this.tune(channel, e.note, e.instrument, e.volume)
             }
         })
     }
@@ -521,7 +525,7 @@ export class RMTPlayer {
             if(this.instr_pos >= this.song_speed * this.song.instrument_freq) {
                 this.instr_pos = 0
                 this.track_pos += 1
-                if(this.track_pos >= this.song.track_length) {
+                if(this.track_pos >= this.current_tracks_size) {
                     this.track_pos = 0
                     if(!this.repeat_track) {
                         this.tracks_list_pos = (this.tracks_list_pos + 1) % this.song.track_lists.length
@@ -600,6 +604,10 @@ export class RMTPlayer {
         this.pokey_regs[9 * pokey_idx + 8] = value
     }
 
+    update_pokey_audctl(pokey_idx, value) {
+        this.pokey_regs[9 * pokey_idx + 8] |= value
+    }
+
     get_pokey_audctl(pokey_idx, value) {
         return this.pokey_regs[9 * pokey_idx + 8]
     }
@@ -641,10 +649,13 @@ export class RMTPlayer {
 
         this.instr_pos = 0
         this.track_pos = 0
-        this.tracks_list_pos = 0
-        this.repeat_track = false
+
         this.channel_tone = []
         this.channel_volume = []
+
+        // for debugging
+        this.tracks_list_pos = 0
+        this.repeat_track = false
 
         this.current_frame = 0;
         for(var i=0; i<this.pokey_regs.length; i++) {

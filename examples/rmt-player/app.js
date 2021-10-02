@@ -262,7 +262,7 @@ NAME: ${i.name} (size: ${size} bytes)
 VIBRATO: ${h2(i.vibrato)}       EGO: ${h2(i.ego)   }     TGO: ${h2(i.tgo)}
  FSHIFT: ${h2(i.fshift) }    VSLIDE: ${h2(i.vslide)}    TSPD: ${h2(i.tspd)}
          ${'  '         }      VMIN: ${h2(i.vmin)  }    TYPE: ${h2(i.ttype)}
-         ${'  '         }            ${'  '        }    MODE: ${h2(i.tmode)}
+ AUDCTL: ${h2(i.audctl) }            ${'  '        }    MODE: ${h2(i.tmode)}
      ${v1}
      ${v2}
      ${v3}
