@@ -382,25 +382,24 @@ class RMTTune {
     }
 
     postPlay(player, prev_audctl) {
-        let pchannel = this.channel % 4
-        if(pchannel < 2) {
+        let pokey_channel = this.channel % 4
+        if(pokey_channel < 2) {
             let next_ch = this.channel + 2
             if(this.env_filter && player.getPokeyAudc(this.channel) & 0xf) {
                 player.setPokeyAudf(next_ch, (player.getPokeyAudf(this.channel) + this.filter) & 0xff)
-                player.updatePokeyAudctl(this.pokey_idx, pchannel == 0 ? 4 : 2)
+                player.updatePokeyAudctl(this.pokey_idx, pokey_channel == 0 ? 4 : 2)
             }
         }
-        if(pchannel == 1 && (player.getPokeyAudctl(this.pokey_idx) == prev_audctl) || pchannel == 3) {
+        if(pokey_channel == 1 && (player.getPokeyAudctl(this.pokey_idx) == prev_audctl) || pokey_channel == 3) {
             if((this.env_dist == 6) && (player.getPokeyAudc(this.channel) & 0xf) ) {
                 player.setPokeyAudf((this.channel - 1), BASS_LO[this.outnote])
                 player.setPokeyAudf(this.channel, BASS_HI[this.outnote])
-                player.updatePokeyAudctl(this.pokey_idx, pchannel == 1 ? 0x50 : 0x28)
+                player.updatePokeyAudctl(this.pokey_idx, pokey_channel == 1 ? 0x50 : 0x28)
                 if((player.getPokeyAudc(this.channel - 1) & 0x10) == 0) { // audc[ch-1]
                     player.setPokeyAudc(this.channel - 1, 0)
                 }
             }
         }
-
     }
 }
 
