@@ -144,7 +144,6 @@ class RMTSong {
         }
         if(blocks.length>1) {
             let decoder = new TextDecoder()
-            console.log("HERE", blocks[1].data, decoder.decode(blocks[1].data))
             this.names = decoder.decode(blocks[1].data).split("\0")
         } else {
             this.names = []
@@ -174,22 +173,23 @@ class RMTSong {
         let track_pointers_table_lo = ptr(0xa)
         let track_pointers_table_hi = ptr(0xc)
         let song_track_list = ptr(0xe)
+        let n_tracks = track_pointers_table_hi - track_pointers_table_lo
+        let n_instr = (track_pointers_table_lo - instrument_pointers_offs) / 2
 
         console.info(this.names, rmt_data, rmt_offset)
         console.info(`n_channels: ${this.n_channels}`)
+        console.info(`n_tracks: ${n_tracks}`)
+        console.info(`n_instr: ${n_instr}`)
         console.info(`song_speed: ${this.song_speed}`)
         console.info(`instrument_freq: ${this.instrument_freq}`)
         console.info(`format_version: ${this.format_version}`)
         console.info(`song_track_list: ${song_track_list}`)
 
-        console.log(`instrument_pointers_offs: ${instrument_pointers_offs}`)
-        console.log(`track_pointers_table_lo: ${track_pointers_table_lo}`)
-        console.log(`track_pointers_table_hi: ${track_pointers_table_hi}`)
-        console.log(`song_track_list ${song_track_list}`)
+        // console.log(`instrument_pointers_offs: ${instrument_pointers_offs}`)
+        // console.log(`track_pointers_table_lo: ${track_pointers_table_lo}`)
+        // console.log(`track_pointers_table_hi: ${track_pointers_table_hi}`)
+        // console.log(`song_track_list ${song_track_list}`)
 
-        let n_tracks = track_pointers_table_hi - track_pointers_table_lo
-        console.log(`n_tracks: ${n_tracks}`)
-        let n_instr = (track_pointers_table_lo - instrument_pointers_offs) / 2
         let track_ptr = i => rmt_data[track_pointers_table_hi + i] * 256 + rmt_data[track_pointers_table_lo + i] - rmt_offset
         for(var i=0; i < n_tracks; i++) {
             let start = track_ptr(i)
@@ -272,6 +272,7 @@ class RMTTune {
         var env_dist = ((envelope[env_idx + 1] >> 1) & 7) * 2
         let env_cmd = (envelope[env_idx + 1] >> 4) & 7
         let env_filter = (envelope[env_idx + 1] >> 7) & 1
+        let env_porta = envelope[env_idx + 1] & 1
         let env_xy = envelope[env_idx + 2]
 
         this.env_dist = env_dist
@@ -331,12 +332,28 @@ class RMTTune {
                 note = this.note
                 break
             case 5:
+                var portafrqc
                 // TODO portamento
+                if(this.instrument.ttype == 0) {
+                    // cmd5a1
+                    note = (this.note + this.instrument.table[this.tpos]) & 0xff
+                    if(note > 61) note = 63
+                    portafrqc = freq_table[note]
+                } else {
+                    portafrqc = (freq_table[this.note] + this.instrument.table[this.tpos]) & 0xff
+                }
+                // cmd5ax
+                let portafrqa = !env_xy ? portafrqc : null
+                let portaspeed = (env_xy >> 4)
+                let portadepth = (env_xy & 0xf)
+
+                player.portamento[this.channel].setup(portafrqc, portafrqa, portaspeed, portadepth)
+                // cmd5a
                 note = this.note
                 break
             case 6:
                 this.filter += env_xy
-                // TODO filter
+                // TODO ?
                 note = this.note
                 break
             case 7:
@@ -368,6 +385,11 @@ class RMTTune {
                 audf = (freq_table[note] + frqaddcmd2 + this.instrument.table[this.tpos] + this.shiftfrq) & 0xff
             }
         }
+        let frq = player.portamento[this.channel].freq()
+        if(env_porta) {
+            audf = (frq + this.shiftfrq) & 0xff
+        }
+
         player.setPokeyAudf(this.channel, audf)
         player.setPokeyAudc(this.channel, audc)
         player.updatePokeyAudctl(this.pokey_idx, this.instrument.audctl)
@@ -411,6 +433,39 @@ function lalign(txt, width) {
     return `${txt}       `.substring(0, width)
 }
 
+class Portamento {
+    constructor() {
+        this.frqc = this.frqa = this.speed = this.depth = 0
+    }
+    setup(frqc, frqa, speed, depth) {
+        this.frqc = frqc
+        if(frqa != null) {
+            this.frqa = frqa
+        }
+        this.speed = this.speeda = speed
+        this.depth = depth
+        // console.log(`setupPortamento frqc: ${frqc} frqa: ${frqa} speed: ${speed} depth: ${depth}`)
+    }
+    freq() {
+        if(this.speeda) {
+            this.speeda = (this.speeda - 1) & 0xff
+            if(!this.speeda) {
+                this.speeda = this.speed
+                if(this.frqa != this.frqc) {
+                    if(this.frqa < this.frqc) {
+                        let v = this.frqa + this.depth
+                        this.frqa = v >= 256 || v >= this.frqc ? this.frqc : v
+                    } else {
+                        let v = this.frqa  - this.depth
+                        this.frqa = v < 0 || v < this.frqc ? this.frqc : v
+                    }
+                }
+            }
+        }
+        return this.frqa
+    }
+}
+
 export class RMTPlayer {
     constructor(audio_context, pokey_node) {
         this.audio_context = audio_context
@@ -439,6 +494,10 @@ export class RMTPlayer {
         this.instruments = song.instruments
         this.frame_interval = 1 / this.frame_rate / this.song.instrument_freq
 
+        this.portamento = []
+        for(let i=0; i<this.song.n_channels; i++ ) {
+            this.portamento[i] = new Portamento()
+        }
         console.log(song.name, song.instruments, song.tracks, song.track_lists)
         return true
     }
@@ -550,6 +609,31 @@ export class RMTPlayer {
                 this.channel_volume[tone.channel] -= tone.instrument.vslide
             }
         }
+    }
+
+    setupPortamento(ch, frqc, frqa, speed, depth) {
+        this.portamento[ch].setup(frqc, frqa, speed, depth)
+        // console.log(`setupPortamento, ch: #${ch}, frqc: ${frqc} frqa: ${frqa} speed: ${speed} depth: ${depth}`)
+    }
+
+    portamento(ch) {
+        if(this.portaspeeda[ch]) {
+            this.portaspeeda[ch] = (this.portaspeeda[ch] - 1) & 0xff
+            if(!this.portaspeeda[ch]) {
+                this.portaspeeda[ch] = this.portaspeed[ch]
+                if(this.portafrqa[ch] != this.portafrqc[ch]) {
+                    if(this.portafrqa[ch] < this.portafrqc[ch]) {
+                        let v = this.portafrqa[ch] + this.portadepth[ch]
+                        this.portafrqa[ch] = v >= 256 || v >= this.portafrqc[ch] ? this.portafrqc[ch] : v
+                    } else {
+                        let v = this.portafrqa[ch]  - this.portadepth[ch]
+                        this.portafrqa[ch] = v < 0 || v < this.portafrqc[ch] ? this.portafrqc[ch] : v
+                    }
+                }
+            }
+        }
+        // pp10
+        return this.portafrqa[ch]
     }
 
     step() {

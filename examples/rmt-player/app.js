@@ -248,6 +248,7 @@ async function init(latencyHint) {
         let distortions = _ef(1).map(v => (((v >> 1) & 7) * 2).toString(16)).join("")
         let commands = _ef(1).map(v => ((v >> 4) & 7).toString(16)).join("")
         let filters = _ef(1).map(v => v & 128 ? "•" : ".").join("")
+        let portas = _ef(1).map(v => v & 1 ? "•" : ".").join("")
         let xs = _ef(2).map(v => (v >> 4).toString(16)).join("")
         let ys = _ef(2).map(v => (v & 0xf).toString(16)).join("")
 
@@ -273,6 +274,7 @@ CMD: ${commands}
  X/: ${xs}
  Y\\: ${ys}
   F: ${filters}
+  P: ${portas}
 
 TABLE OF NOTES: |${instrument.table.map(hex2).join(" ")}|
         `).appendTo(cont)
