@@ -108,7 +108,7 @@ class RMTTrack {
             }
         }
     }
-    get_entry(index) {
+    getEntry(index) {
         return this.steps[index]
     }
     size() {
@@ -368,9 +368,9 @@ class RMTTune {
                 audf = (freq_table[note] + frqaddcmd2 + this.instrument.table[this.tpos] + this.shiftfrq) & 0xff
             }
         }
-        player.set_pokey_audf(this.channel, audf)
-        player.set_pokey_audc(this.channel, audc)
-        player.update_pokey_audctl(this.pokey_idx, this.instrument.audctl)
+        player.setPokeyAudf(this.channel, audf)
+        player.setPokeyAudc(this.channel, audc)
+        player.updatePokeyAudctl(this.pokey_idx, this.instrument.audctl)
 
         this.tcnt = (this.tcnt + 1) % this.instrument.tspd
         if(!this.tcnt) {
@@ -381,22 +381,22 @@ class RMTTune {
         }
     }
 
-    post_play(player, prev_audctl) {
+    postPlay(player, prev_audctl) {
         let pchannel = this.channel % 4
         if(pchannel < 2) {
             let next_ch = this.channel + 2
-            if(this.env_filter && player.get_pokey_audc(this.channel) & 0xf) {
-                player.set_pokey_audf(next_ch, (player.get_pokey_audf(this.channel) + this.filter) & 0xff)
-                player.update_pokey_audctl(this.pokey_idx, pchannel == 0 ? 4 : 2)
+            if(this.env_filter && player.getPokeyAudc(this.channel) & 0xf) {
+                player.setPokeyAudf(next_ch, (player.getPokeyAudf(this.channel) + this.filter) & 0xff)
+                player.updatePokeyAudctl(this.pokey_idx, pchannel == 0 ? 4 : 2)
             }
         }
-        if(pchannel == 1 && (player.get_pokey_audctl(this.pokey_idx) == prev_audctl) || pchannel == 3) {
-            if((this.env_dist == 6) && (player.get_pokey_audc(this.channel) & 0xf) ) {
-                player.set_pokey_audf((this.channel - 1), BASS_LO[this.outnote])
-                player.set_pokey_audf(this.channel, BASS_HI[this.outnote])
-                player.update_pokey_audctl(this.pokey_idx, pchannel == 1 ? 0x50 : 0x28)
-                if((player.get_pokey_audc(this.channel - 1) & 0x10) == 0) { // audc[ch-1]
-                    player.set_pokey_audc(this.channel - 1, 0)
+        if(pchannel == 1 && (player.getPokeyAudctl(this.pokey_idx) == prev_audctl) || pchannel == 3) {
+            if((this.env_dist == 6) && (player.getPokeyAudc(this.channel) & 0xf) ) {
+                player.setPokeyAudf((this.channel - 1), BASS_LO[this.outnote])
+                player.setPokeyAudf(this.channel, BASS_HI[this.outnote])
+                player.updatePokeyAudctl(this.pokey_idx, pchannel == 1 ? 0x50 : 0x28)
+                if((player.getPokeyAudc(this.channel - 1) & 0x10) == 0) { // audc[ch-1]
+                    player.setPokeyAudc(this.channel - 1, 0)
                 }
             }
         }
@@ -471,7 +471,7 @@ export class RMTPlayer {
         this.fillBuffer()
     }
 
-    load_tracks() {
+    loadTracks() {
         var track_list
         while(true) {
             track_list = this.song.track_lists[this.tracks_list_pos]
@@ -489,9 +489,9 @@ export class RMTPlayer {
         console.info(this.current_tracks_size, this.current_tracks)
     }
 
-    load_tracks_entries() {
+    loadTracksEntries() {
         // load this.track_pos entries
-        let entries = this.current_tracks.map(track => track.get_entry(this.track_pos))
+        let entries = this.current_tracks.map(track => track.getEntry(this.track_pos))
         let entry_txt = entries.map((e) => {
             return (
                 lalign(e.noteName || '-', 3)
@@ -529,10 +529,10 @@ export class RMTPlayer {
                     this.track_pos = 0
                     if(!this.repeat_track) {
                         this.tracks_list_pos = (this.tracks_list_pos + 1) % this.song.track_lists.length
-                        this.load_tracks()
+                        this.loadTracks()
                     }
                 }
-                this.load_tracks_entries()
+                this.loadTracksEntries()
             }
             this.step()
             this.current_frame += 1
@@ -544,7 +544,7 @@ export class RMTPlayer {
         }
     }
 
-    fade_volume(tone) {
+    fadeVolume(tone) {
         if(tone.is_repeating) {
             let v = this.channel_volume[tone.channel] >> 8
             if(v && v > tone.instrument.vmin) {
@@ -555,27 +555,27 @@ export class RMTPlayer {
 
     step() {
         let n_channels = this.song.n_channels;
-        this.set_pokey_audctl(0, 0)
+        this.setPokeyAudctl(0, 0)
         if(n_channels > 4) {
-            this.set_pokey_audctl(1, 0)
+            this.setPokeyAudctl(1, 0)
         }
         for(var i=0; i<n_channels; i++) {
             let tone = this.channel_tone[i]
             if(tone) {
                 tone.play(this)
-                this.fade_volume(tone)
+                this.fadeVolume(tone)
             }
         }
-        let prev_audctl = this.get_pokey_audctl(0)
+        let prev_audctl = this.getPokeyAudctl(0)
         let prev_audctl_r
         if(n_channels > 4)
-            prev_audctl_r = this.get_pokey_audctl(1)
+            prev_audctl_r = this.getPokeyAudctl(1)
         for(var i=0; i<n_channels; i++) {
             if(this.channel_tone[i]) {
-                this.channel_tone[i].post_play(this, i < 4 ? prev_audctl : prev_audctl_r)
+                this.channel_tone[i].postPlay(this, i < 4 ? prev_audctl : prev_audctl_r)
             }
         }
-        this._send_regs(this.pokey_regs)
+        this.sendRegs(this.pokey_regs)
     }
 
     getCurrentTime() {
@@ -583,8 +583,8 @@ export class RMTPlayer {
     }
 
     play() {
-        this.load_tracks()
-        this.load_tracks_entries()
+        this.loadTracks()
+        this.loadTracksEntries()
 
         let currentTime = this.getCurrentTime();
         if(this.startTime == null) {
@@ -600,43 +600,43 @@ export class RMTPlayer {
         this.loadCurrentFrame();
     }
 
-    set_pokey_audctl(pokey_idx, value) {
+    setPokeyAudctl(pokey_idx, value) {
         this.pokey_regs[9 * pokey_idx + 8] = value
     }
 
-    update_pokey_audctl(pokey_idx, value) {
+    updatePokeyAudctl(pokey_idx, value) {
         this.pokey_regs[9 * pokey_idx + 8] |= value
     }
 
-    get_pokey_audctl(pokey_idx, value) {
+    getPokeyAudctl(pokey_idx, value) {
         return this.pokey_regs[9 * pokey_idx + 8]
     }
 
-    set_pokey_audf(channel, value) {
+    setPokeyAudf(channel, value) {
         let offs = channel < 4 ? 0 : 9
         channel = channel & 3
         this.pokey_regs[offs + channel * 2] = value
     }
 
-    get_pokey_audf(channel) {
+    getPokeyAudf(channel) {
         let offs = channel < 4 ? 0 : 9
         channel = channel & 3
         return this.pokey_regs[offs + channel * 2]
     }
 
-    set_pokey_audc(channel, value) {
+    setPokeyAudc(channel, value) {
         let offs = channel < 4 ? 0 : 9
         channel = channel & 3
         this.pokey_regs[offs + channel * 2 + 1] = value
     }
 
-    get_pokey_audc(channel) {
+    getPokeyAudc(channel) {
         let offs = channel < 4 ? 0 : 9
         channel = channel & 3
         return this.pokey_regs[offs + channel * 2 + 1]
     }
 
-    _send_regs(regs) {
+    sendRegs(regs) {
         let t = this.startTime != null ? this.startTime + this.current_frame * this.frame_interval : this.getCurrentTime() + this.latency;
         let n_regs = this.song && this.song.n_channels == 4 ? 9 : 18
         let msg = regs.slice(0, n_regs).flatMap((v, i) => [i < 9 ? i : i - 9 + 16, v, t])
@@ -661,7 +661,7 @@ export class RMTPlayer {
         for(var i=0; i<this.pokey_regs.length; i++) {
             this.pokey_regs[i] = 0;
         }
-        this._send_regs(EMPTY_POKEY_REGS)
+        this.sendRegs(EMPTY_POKEY_REGS)
     }
 
     prev() {
