@@ -176,38 +176,19 @@ class RMTSong {
         let n_tracks = track_pointers_table_hi - track_pointers_table_lo
         let n_instr = (track_pointers_table_lo - instrument_pointers_offs) / 2
 
-        console.info(this.names, rmt_data, rmt_offset)
-        console.info(`n_channels: ${this.n_channels}`)
-        console.info(`n_tracks: ${n_tracks}`)
-        console.info(`n_instr: ${n_instr}`)
-        console.info(`song_speed: ${this.song_speed}`)
-        console.info(`instrument_freq: ${this.instrument_freq}`)
-        console.info(`format_version: ${this.format_version}`)
-        console.info(`song_track_list: ${song_track_list}`)
-
-        // console.log(`instrument_pointers_offs: ${instrument_pointers_offs}`)
-        // console.log(`track_pointers_table_lo: ${track_pointers_table_lo}`)
-        // console.log(`track_pointers_table_hi: ${track_pointers_table_hi}`)
-        // console.log(`song_track_list ${song_track_list}`)
-
         let track_ptr = i => rmt_data[track_pointers_table_hi + i] * 256 + rmt_data[track_pointers_table_lo + i] - rmt_offset
         for(var i=0; i < n_tracks; i++) {
             let start = track_ptr(i)
             let end = i < n_tracks - 1 ? track_ptr(i+1) : song_track_list;
             if(end < 0) end = song_track_list
-            console.log(`track #${i}, ${start}, ${end}`)
             if(start >= 0 && end > start) {
                 this.tracks[i] = new RMTTrack(i, rmt_data.subarray(start, end), this.track_length)
             }
         }
-        let empty_track = new RMTTrack(255, new Uint8Array([0x3e + 0x40]), this.track_length)
-        for(var i=n_tracks; i<256; i++) {
-            this.tracks[i] = empty_track
-        }
+        this.tracks[255] = new RMTTrack(255, new Uint8Array([0x3e + 0x40]), this.track_length)
         let instr_name_offs = 1;
         for(var i=0; i<n_instr; i++) {
             let instr_offs = ptr(instrument_pointers_offs + i*2)
-            console.log(`${i} - ${instr_offs}`)
             if(instr_offs > 0) {
                 this.instruments[i] = new RMTInstrument(i, this.names[instr_name_offs++] || '', rmt_data.subarray(instr_offs))
             }
@@ -490,6 +471,7 @@ export class RMTPlayer {
     load(buffer) {
         this.stop();
         let song = this.song = new RMTSong(buffer)
+        console.info(song)
         this.song_speed = song.song_speed
         this.instruments = song.instruments
         this.frame_interval = 1 / this.frame_rate / this.song.instrument_freq
@@ -498,7 +480,6 @@ export class RMTPlayer {
         for(let i=0; i<this.song.n_channels; i++ ) {
             this.portamento[i] = new Portamento()
         }
-        console.log(song.name, song.instruments, song.tracks, song.track_lists)
         return true
     }
 
@@ -534,7 +515,7 @@ export class RMTPlayer {
         while(true) {
             track_list = this.song.track_lists[this.tracks_list_pos]
             if(track_list[0] != 0xfe) break;
-            console.log("goto", track_list[1])
+            // console.log("goto", track_list[1])
             this.tracks_list_pos = track_list[1]
         }
         this.current_tracks = Array.from(track_list).map( track_idx => {

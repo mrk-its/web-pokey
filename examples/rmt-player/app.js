@@ -199,7 +199,6 @@ async function init(latencyHint) {
             let db = parseFloat(event.target.value)
             let min = parseFloat(event.target.min)
             let gain = db > min ? Math.pow(10, db / 20) : 0
-            console.log("gain", db, "db (", gain, ")")
             pokeyNode.parameters.get('gain').value = gain
             localStorage.volume_db = db
             $("span.volume_db").text(`${db.toFixed(1)}dB`)
