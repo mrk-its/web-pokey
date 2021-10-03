@@ -454,18 +454,10 @@ export class RMTPlayer {
         this.current_frame = 0
         this.startTime = null
         this.state = "stopped"
-        this.latency = 0.05
+        this.latency = 0.10
         this.pokey_regs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         this.frame_rate = 50
         this.frame_interval = 1 / this.frame_rate
-    }
-
-    seek(pos) {
-        this.current_frame = parseInt(pos);
-        let is_playing = this.state == "playing"
-        this.pause();
-        this.startTime = null;
-        if(is_playing) this.play();
     }
 
     load(buffer) {
@@ -576,10 +568,10 @@ export class RMTPlayer {
             this.step()
             this.current_frame += 1
             this.sendEvent(this.pokey_regs);
-            if(this.current_frame == 0) {
-                this.startTime = currentTime;
-                return;
-            }
+            // if(this.current_frame == 0) {
+            //     this.startTime = currentTime;
+            //     return;
+            // }
         }
     }
 
@@ -590,31 +582,6 @@ export class RMTPlayer {
                 this.channel_volume[tone.channel] -= tone.instrument.vslide
             }
         }
-    }
-
-    setupPortamento(ch, frqc, frqa, speed, depth) {
-        this.portamento[ch].setup(frqc, frqa, speed, depth)
-        // console.log(`setupPortamento, ch: #${ch}, frqc: ${frqc} frqa: ${frqa} speed: ${speed} depth: ${depth}`)
-    }
-
-    portamento(ch) {
-        if(this.portaspeeda[ch]) {
-            this.portaspeeda[ch] = (this.portaspeeda[ch] - 1) & 0xff
-            if(!this.portaspeeda[ch]) {
-                this.portaspeeda[ch] = this.portaspeed[ch]
-                if(this.portafrqa[ch] != this.portafrqc[ch]) {
-                    if(this.portafrqa[ch] < this.portafrqc[ch]) {
-                        let v = this.portafrqa[ch] + this.portadepth[ch]
-                        this.portafrqa[ch] = v >= 256 || v >= this.portafrqc[ch] ? this.portafrqc[ch] : v
-                    } else {
-                        let v = this.portafrqa[ch]  - this.portadepth[ch]
-                        this.portafrqa[ch] = v < 0 || v < this.portafrqc[ch] ? this.portafrqc[ch] : v
-                    }
-                }
-            }
-        }
-        // pp10
-        return this.portafrqa[ch]
     }
 
     step() {
@@ -657,6 +624,7 @@ export class RMTPlayer {
         this.state = "playing";
         this.fillBuffer();
     }
+
     pause() {
         this.state = "paused";
         this.interval = null;
