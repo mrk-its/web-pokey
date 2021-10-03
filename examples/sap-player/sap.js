@@ -1,12 +1,12 @@
 const EMPTY_POKEY_REGS = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 export class SAPPlayer {
-    constructor(audio_context, pokey_node) {
+    constructor(audio_context, pokeyNode) {
         this.audio_context = audio_context
-        this.pokey_node = pokey_node
+        this.pokeyNode = pokeyNode
         this.headers = []
         this.data = null
-        this.current_frame = 0
+        this.currentFrame = 0
         this.frame_cnt = 0
         this.startTime = null
         this.state = "stopped"
@@ -14,7 +14,7 @@ export class SAPPlayer {
     }
 
     seek(pos) {
-        this.current_frame = parseInt(pos);
+        this.currentFrame = parseInt(pos);
         let is_playing = this.state == "playing"
         this.pause();
         this.startTime = null;
@@ -57,15 +57,15 @@ export class SAPPlayer {
                 var is_ntsc = typeof this.headers.NTSC != "undefined"
                 var fastplay = parseInt(this.headers.FASTPLAY) || 0;
                 if(fastplay) {
-                    this.frame_interval = 1 / ((is_ntsc ? 262 * 60 : 312 * 50) / fastplay);
+                    this.frameInterval = 1 / ((is_ntsc ? 262 * 60 : 312 * 50) / fastplay);
                 } else if (is_ntsc) {
-                    this.frame_interval = 1 / 60;
+                    this.frameInterval = 1 / 60;
                 } else {
-                    this.frame_interval = 1 / 50;
+                    this.frameInterval = 1 / 50;
                 }
                 this.frame_size = (this.headers.STEREO ? 18 : 9)
                 this.frame_cnt = Math.floor(this.data.length / this.frame_size);
-                this.current_frame = 0;
+                this.currentFrame = 0;
                 this.sendEvent();
                 let is_ok = this.data.length > 0;
                 return is_ok;
@@ -79,14 +79,14 @@ export class SAPPlayer {
         return Array.from(this.data.slice(index * this.frame_size, (index + 1) * this.frame_size));
     }
     loadCurrentFrame() {
-        this._send_regs(this.getPokeyRegs(this.current_frame))
+        this._send_regs(this.getPokeyRegs(this.currentFrame))
     }
     sendEvent(regs) {
         let event = new Event("sap_player");
         event.data = {
-            current_frame: this.current_frame,
+            currentFrame: this.currentFrame,
             frame_cnt: this.frame_cnt,
-            pokey_regs: regs || null,
+            pokeyRegs: regs || null,
             state: this.state,
         }
         window.dispatchEvent(event);
@@ -99,11 +99,11 @@ export class SAPPlayer {
             return;
         }
         let currentTime = this.getCurrentTime();
-        while(this.startTime + this.current_frame * this.frame_interval < currentTime + this.latency) {
-            let regs = this.getPokeyRegs(this.current_frame);
+        while(this.startTime + this.currentFrame * this.frameInterval < currentTime + this.latency) {
+            let regs = this.getPokeyRegs(this.currentFrame);
             this._send_regs(regs)
-            this.current_frame = (this.current_frame + this.frame_cnt + 1) % this.frame_cnt;
-            if(this.current_frame == 0) {
+            this.currentFrame = (this.currentFrame + this.frame_cnt + 1) % this.frame_cnt;
+            if(this.currentFrame == 0) {
                 this.startTime = currentTime;
                 return;
             }
@@ -115,7 +115,7 @@ export class SAPPlayer {
     play() {
         let currentTime = this.getCurrentTime();
         if(this.startTime == null) {
-            this.startTime = currentTime - this.current_frame * this.frame_interval;
+            this.startTime = currentTime - this.currentFrame * this.frameInterval;
         }
         this.state = "playing";
         this.fillBuffer();
@@ -127,28 +127,28 @@ export class SAPPlayer {
         this.loadCurrentFrame();
     }
     _send_regs(regs) {
-        let t = this.startTime != null ? this.startTime + this.current_frame * this.frame_interval : this.getCurrentTime() + this.latency;
+        let t = this.startTime != null ? this.startTime + this.currentFrame * this.frameInterval : this.getCurrentTime() + this.latency;
         let msg = regs.slice().flatMap((v, i) => [i < 9 ? i : i - 9 + 16, v, t])
-        this.pokey_node.port.postMessage(msg);
+        this.pokeyNode.port.postMessage(msg);
         this.sendEvent(regs)
     }
     stop() {
         this.state = "stopped";
         this.startTime = null;
-        this.current_frame = 0;
+        this.currentFrame = 0;
         this._send_regs(EMPTY_POKEY_REGS)
     }
 
     prev() {
         if (!this.data.length) return;
         this.pause();
-        this.current_frame = (this.current_frame + this.frame_cnt - 1) % this.frame_cnt;
+        this.currentFrame = (this.currentFrame + this.frame_cnt - 1) % this.frame_cnt;
         this.loadCurrentFrame();
     }
     next() {
         if (!this.data.length) return;
         this.pause();
-        this.current_frame = (this.current_frame + 1) % this.frame_cnt;
+        this.currentFrame = (this.currentFrame + 1) % this.frame_cnt;
         this.loadCurrentFrame();
     }
 }

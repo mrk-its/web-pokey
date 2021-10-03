@@ -108,7 +108,7 @@ async function init(latencyHint) {
         localStorage['latencyHint'] = e.target.value;
     }).val(localStorage['latencyHint'] || 'playback');
     $('#ua').text(window.navigator.userAgent);
-    $('#pokey_regs input').change(send_regs);
+    $('#pokeyRegs input').change(send_regs);
     $('body').click(() => {
         sapPlayer.audio_context.resume();
     })
@@ -152,7 +152,7 @@ async function init(latencyHint) {
             let min = parseFloat(event.target.min)
             let gain = db > min ? Math.pow(10, db / 20) : 0
             console.log("gain", db, "db (", gain, ")")
-            sapPlayer.pokey_node.parameters.get('gain').value = gain
+            sapPlayer.pokeyNode.parameters.get('gain').value = gain
             localStorage.volume_db = db
             $("span.volume_db").text(`${db.toFixed(1)}dB`)
         }
@@ -168,15 +168,15 @@ async function init(latencyHint) {
 
     $(window).bind("sap_player", event => {
         let data = event.originalEvent.data;
-        if(data.pokey_regs) {
-            let regs = Array.from(data.pokey_regs);
+        if(data.pokeyRegs) {
+            let regs = Array.from(data.pokeyRegs);
             regs.map(hex2).map((v, i) => {
                 set_reg(i < 9 ? '0' : '1', reg_names[i], v);
             })
         }
         seek[0].max = data.frame_cnt > 0 ? data.frame_cnt - 1 : 0;
-        seek.val(data.current_frame);
-        position_info.text(`${data.current_frame} / ${data.frame_cnt}`)
+        seek.val(data.currentFrame);
+        position_info.text(`${data.currentFrame} / ${data.frame_cnt}`)
     })
 
     $("#details").click(e => {

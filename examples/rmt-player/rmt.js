@@ -66,7 +66,7 @@ const noteNames = _.times(61,note => `${noteBaseNames[note % 12]}${Math.floor(no
 
 
 class RMTTrack {
-    constructor(index, data, track_length) {
+    constructor(index, data, trackLength) {
         this.index = index
         this.data = data
         this.steps = []
@@ -74,7 +74,7 @@ class RMTTrack {
         var i = 0
         var speed = null
 
-        while(this.steps.length < track_length) {
+        while(this.steps.length < trackLength) {
             let note = this.data[i] & 0x3f
             let bits67 = ((this.data[i] & 0xc0) >> 6)
             i = (i + 1) % this.data.length
@@ -93,7 +93,7 @@ class RMTTrack {
                 if(!pause) {
                     pause = this.data[i++];
                 }
-                for(let n=0; n<pause && this.steps.length < track_length; n++) {
+                for(let n=0; n<pause && this.steps.length < trackLength; n++) {
                     this.steps.push({name: "pause", speed})
                     speed = null
                 }
@@ -120,7 +120,7 @@ class RMTSong {
     constructor(array_buffer) {
         this.tracks = []
         this.instruments = []
-        this.track_lists = []
+        this.trackLists = []
 
         let data = new Uint8Array(array_buffer)
         if(data[0]!=255 || data[1]!=255) {
@@ -164,10 +164,10 @@ class RMTSong {
         let ptr = offs => rmt_data[offs] + rmt_data[offs + 1] * 256 - rmt_offset
 
         this.n_channels = n_channels
-        this.track_length = rmt_data[4] || 256
-        this.song_speed = rmt_data[5]
-        this.instrument_freq = rmt_data[6]
-        this.format_version = rmt_data[7]
+        this.trackLength = rmt_data[4] || 256
+        this.songSpeed = rmt_data[5]
+        this.instrumentFreq = rmt_data[6]
+        this.formatVersion = rmt_data[7]
 
         let instrument_pointers_offs = ptr(8)
         let track_pointers_table_lo = ptr(0xa)
@@ -182,10 +182,10 @@ class RMTSong {
             let end = i < n_tracks - 1 ? track_ptr(i+1) : song_track_list;
             if(end < 0) end = song_track_list
             if(start >= 0 && end > start) {
-                this.tracks[i] = new RMTTrack(i, rmt_data.subarray(start, end), this.track_length)
+                this.tracks[i] = new RMTTrack(i, rmt_data.subarray(start, end), this.trackLength)
             }
         }
-        this.tracks[255] = new RMTTrack(255, new Uint8Array([0x3e + 0x40]), this.track_length)
+        this.tracks[255] = new RMTTrack(255, new Uint8Array([0x3e + 0x40]), this.trackLength)
         let instr_name_offs = 1;
         for(var i=0; i<n_instr; i++) {
             let instr_offs = ptr(instrument_pointers_offs + i*2)
@@ -194,7 +194,7 @@ class RMTSong {
             }
         }
         for(var i = song_track_list; i < rmt_data.length; i += this.n_channels) {
-            this.track_lists.push(rmt_data.subarray(i, i + this.n_channels))
+            this.trackLists.push(rmt_data.subarray(i, i + this.n_channels))
         }
     }
 }
@@ -253,7 +253,7 @@ class RMTTune {
         var env_dist = ((envelope[env_idx + 1] >> 1) & 7) * 2
         let env_cmd = (envelope[env_idx + 1] >> 4) & 7
         let env_filter = (envelope[env_idx + 1] >> 7) & 1
-        let env_porta = envelope[env_idx + 1] & 1
+        let env_portamento = envelope[env_idx + 1] & 1
         let env_xy = envelope[env_idx + 2]
 
         this.env_dist = env_dist
@@ -367,7 +367,7 @@ class RMTTune {
             }
         }
         let frq = player.portamento[this.channel].freq()
-        if(env_porta) {
+        if(env_portamento) {
             audf = (frq + this.shiftfrq) & 0xff
         }
 
@@ -448,25 +448,25 @@ class Portamento {
 }
 
 export class RMTPlayer {
-    constructor(audio_context, pokey_node) {
+    constructor(audio_context, pokeyNode) {
         this.audio_context = audio_context
-        this.pokey_node = pokey_node
-        this.current_frame = 0
+        this.pokeyNode = pokeyNode
+        this.currentFrame = 0
         this.startTime = null
         this.state = "stopped"
         this.latency = 0.10
-        this.pokey_regs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        this.frame_rate = 50
-        this.frame_interval = 1 / this.frame_rate
+        this.pokeyRegs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        this.frameRate = 50
+        this.frameInterval = 1 / this.frameRate
     }
 
     load(buffer) {
         this.stop();
         let song = this.song = new RMTSong(buffer)
         console.info(song)
-        this.song_speed = song.song_speed
+        this.songSpeed = song.songSpeed
         this.instruments = song.instruments
-        this.frame_interval = 1 / this.frame_rate / this.song.instrument_freq
+        this.frameInterval = 1 / this.frameRate / this.song.instrumentFreq
 
         this.portamento = []
         for(let i=0; i<this.song.n_channels; i++ ) {
@@ -478,22 +478,22 @@ export class RMTPlayer {
     tune(channel, note, instr, volume) {
         let instrument = this.instruments[instr]
         if(instrument) {
-            this.channel_tone[channel] = new RMTTune(channel, note, instrument)
+            this.channelTone[channel] = new RMTTune(channel, note, instrument)
         }
-        this.channel_volume[channel] = (volume << 8) | 0x7f
+        this.channelVolume[channel] = (volume << 8) | 0x7f
     }
 
     getChannelVolume(channel) {
-        let vol = this.channel_volume[channel]
+        let vol = this.channelVolume[channel]
         return isFinite(vol) ? vol >> 8 : 15
     }
 
     sendEvent(regs) {
         let event = new Event("rmt_player");
         event.data = {
-            current_frame: this.current_frame,
-            frame_cnt: this.current_frame,
-            pokey_regs: regs || null,
+            currentFrame: this.currentFrame,
+            frame_cnt: this.currentFrame,
+            pokeyRegs: regs || null,
             state: this.state,
         }
         window.dispatchEvent(event);
@@ -505,24 +505,24 @@ export class RMTPlayer {
     loadTracks() {
         var track_list
         while(true) {
-            track_list = this.song.track_lists[this.tracks_list_pos]
+            track_list = this.song.trackLists[this.tracksListPos]
             if(track_list[0] != 0xfe) break;
             // console.log("goto", track_list[1])
-            this.tracks_list_pos = track_list[1]
+            this.tracksListPos = track_list[1]
         }
         this.current_tracks = Array.from(track_list).map( track_idx => {
             return this.song.tracks[track_idx]
         })
-        this.current_tracks_size = this.current_tracks.reduce(
+        this.currentTracksSize = this.current_tracks.reduce(
             (size, track) => Math.min(size, track.size()),
-            this.song.track_length
+            this.song.trackLength
         )
-        console.info(this.current_tracks_size, this.current_tracks)
+        console.info(this.currentTracksSize, this.current_tracks)
     }
 
     loadTracksEntries() {
-        // load this.track_pos entries
-        let entries = this.current_tracks.map(track => track.getEntry(this.track_pos))
+        // load this.trackPos entries
+        let entries = this.current_tracks.map(track => track.getEntry(this.trackPos))
         let entry_txt = entries.map((e) => {
             return (
                 lalign(e.noteName || '-', 3)
@@ -532,10 +532,10 @@ export class RMTPlayer {
                 + (isFinite(e.volume) && e.volume.toString(16).toUpperCase() || '-')
             )
         }).join(" | ")
-        console.log(`#${hex2(this.track_pos)} ${entry_txt}`)
+        console.log(`#${hex2(this.trackPos)} ${entry_txt}`)
         _.each(entries, (e, channel) => {
             if(e.speed) {
-                this.song_speed = e.speed
+                this.songSpeed = e.speed
             }
             if(e.name == "note") {
                 // it may be volume-only note
@@ -551,24 +551,24 @@ export class RMTPlayer {
         }
 
         let currentTime = this.getCurrentTime();
-        while(this.startTime + this.current_frame * this.frame_interval < currentTime + this.latency) {
-            this.instr_pos += 1
-            if(this.instr_pos >= this.song_speed * this.song.instrument_freq) {
-                this.instr_pos = 0
-                this.track_pos += 1
-                if(this.track_pos >= this.current_tracks_size) {
-                    this.track_pos = 0
+        while(this.startTime + this.currentFrame * this.frameInterval < currentTime + this.latency) {
+            this.instrPos += 1
+            if(this.instrPos >= this.songSpeed * this.song.instrumentFreq) {
+                this.instrPos = 0
+                this.trackPos += 1
+                if(this.trackPos >= this.currentTracksSize) {
+                    this.trackPos = 0
                     if(!this.repeat_track) {
-                        this.tracks_list_pos = (this.tracks_list_pos + 1) % this.song.track_lists.length
+                        this.tracksListPos = (this.tracksListPos + 1) % this.song.trackLists.length
                         this.loadTracks()
                     }
                 }
                 this.loadTracksEntries()
             }
             this.step()
-            this.current_frame += 1
-            this.sendEvent(this.pokey_regs);
-            // if(this.current_frame == 0) {
+            this.currentFrame += 1
+            this.sendEvent(this.pokeyRegs);
+            // if(this.currentFrame == 0) {
             //     this.startTime = currentTime;
             //     return;
             // }
@@ -577,9 +577,9 @@ export class RMTPlayer {
 
     fadeVolume(tone) {
         if(tone.is_repeating) {
-            let v = this.channel_volume[tone.channel] >> 8
+            let v = this.channelVolume[tone.channel] >> 8
             if(v && v > tone.instrument.vmin) {
-                this.channel_volume[tone.channel] -= tone.instrument.vslide
+                this.channelVolume[tone.channel] -= tone.instrument.vslide
             }
         }
     }
@@ -591,7 +591,7 @@ export class RMTPlayer {
             this.setPokeyAudctl(1, 0)
         }
         for(var i=0; i<n_channels; i++) {
-            let tone = this.channel_tone[i]
+            let tone = this.channelTone[i]
             if(tone) {
                 tone.play(this)
                 this.fadeVolume(tone)
@@ -602,11 +602,11 @@ export class RMTPlayer {
         if(n_channels > 4)
             prev_audctl_r = this.getPokeyAudctl(1)
         for(var i=0; i<n_channels; i++) {
-            if(this.channel_tone[i]) {
-                this.channel_tone[i].postPlay(this, i < 4 ? prev_audctl : prev_audctl_r)
+            if(this.channelTone[i]) {
+                this.channelTone[i].postPlay(this, i < 4 ? prev_audctl : prev_audctl_r)
             }
         }
-        this.sendRegs(this.pokey_regs)
+        this.sendRegs(this.pokeyRegs)
     }
 
     getCurrentTime() {
@@ -619,7 +619,7 @@ export class RMTPlayer {
 
         let currentTime = this.getCurrentTime();
         if(this.startTime == null) {
-            this.startTime = currentTime - this.current_frame * this.frame_interval;
+            this.startTime = currentTime - this.currentFrame * this.frameInterval;
         }
         this.state = "playing";
         this.fillBuffer();
@@ -633,65 +633,65 @@ export class RMTPlayer {
     }
 
     setPokeyAudctl(pokey_idx, value) {
-        this.pokey_regs[9 * pokey_idx + 8] = value
+        this.pokeyRegs[9 * pokey_idx + 8] = value
     }
 
     updatePokeyAudctl(pokey_idx, value) {
-        this.pokey_regs[9 * pokey_idx + 8] |= value
+        this.pokeyRegs[9 * pokey_idx + 8] |= value
     }
 
     getPokeyAudctl(pokey_idx, value) {
-        return this.pokey_regs[9 * pokey_idx + 8]
+        return this.pokeyRegs[9 * pokey_idx + 8]
     }
 
     setPokeyAudf(channel, value) {
         let offs = channel < 4 ? 0 : 9
         channel = channel & 3
-        this.pokey_regs[offs + channel * 2] = value
+        this.pokeyRegs[offs + channel * 2] = value
     }
 
     getPokeyAudf(channel) {
         let offs = channel < 4 ? 0 : 9
         channel = channel & 3
-        return this.pokey_regs[offs + channel * 2]
+        return this.pokeyRegs[offs + channel * 2]
     }
 
     setPokeyAudc(channel, value) {
         let offs = channel < 4 ? 0 : 9
         channel = channel & 3
-        this.pokey_regs[offs + channel * 2 + 1] = value
+        this.pokeyRegs[offs + channel * 2 + 1] = value
     }
 
     getPokeyAudc(channel) {
         let offs = channel < 4 ? 0 : 9
         channel = channel & 3
-        return this.pokey_regs[offs + channel * 2 + 1]
+        return this.pokeyRegs[offs + channel * 2 + 1]
     }
 
     sendRegs(regs) {
-        let t = this.startTime != null ? this.startTime + this.current_frame * this.frame_interval : this.getCurrentTime() + this.latency;
+        let t = this.startTime != null ? this.startTime + this.currentFrame * this.frameInterval : this.getCurrentTime() + this.latency;
         let n_regs = this.song && this.song.n_channels == 4 ? 9 : 18
         let msg = regs.slice(0, n_regs).flatMap((v, i) => [i < 9 ? i : i - 9 + 16, v, t])
-        this.pokey_node.port.postMessage(msg);
+        this.pokeyNode.port.postMessage(msg);
         this.sendEvent(regs)
     }
     stop() {
         this.state = "stopped";
         this.startTime = null;
 
-        this.instr_pos = 0
-        this.track_pos = 0
+        this.instrPos = 0
+        this.trackPos = 0
 
-        this.channel_tone = []
-        this.channel_volume = []
+        this.channelTone = []
+        this.channelVolume = []
 
         // for debugging
-        this.tracks_list_pos = 0
+        this.tracksListPos = 0
         this.repeat_track = false
 
-        this.current_frame = 0;
-        for(var i=0; i<this.pokey_regs.length; i++) {
-            this.pokey_regs[i] = 0;
+        this.currentFrame = 0;
+        for(var i=0; i<this.pokeyRegs.length; i++) {
+            this.pokeyRegs[i] = 0;
         }
         this.sendRegs(EMPTY_POKEY_REGS)
     }
@@ -699,13 +699,13 @@ export class RMTPlayer {
     prev() {
         if (!this.data.length) return;
         this.pause();
-        this.current_frame = (this.current_frame + this.frame_cnt - 1) % this.frame_cnt;
+        this.currentFrame = (this.currentFrame + this.frame_cnt - 1) % this.frame_cnt;
         this.loadCurrentFrame();
     }
     next() {
         if (!this.data.length) return;
         this.pause();
-        this.current_frame = (this.current_frame + 1) % this.frame_cnt;
+        this.currentFrame = (this.currentFrame + 1) % this.frame_cnt;
         this.loadCurrentFrame();
     }
 }

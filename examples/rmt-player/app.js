@@ -97,7 +97,7 @@ async function init(latencyHint) {
             return
         }
         $('#player .title').text(rmt_player.song.name)
-        $('#player .details').text(`${rmt_player.song.n_channels == 8 ? 'stereo' : 'mono'} ${rmt_player.song.song_speed} / ${rmt_player.song.instrument_freq}`)
+        $('#player .details').text(`${rmt_player.song.n_channels == 8 ? 'stereo' : 'mono'} ${rmt_player.song.songSpeed} / ${rmt_player.song.instrumentFreq}`)
         rmt_player.play()
 
         let instr_selector = $("#instrument")
@@ -159,7 +159,7 @@ async function init(latencyHint) {
         localStorage['latencyHint'] = e.target.value;
     }).val(localStorage['latencyHint'] || 'playback');
     $('#ua').text(window.navigator.userAgent);
-    $('#pokey_regs input').change(send_regs);
+    $('#pokeyRegs input').change(send_regs);
     $('body').click(() => {
         audioContext.resume();
     })
@@ -217,13 +217,13 @@ async function init(latencyHint) {
 
     $(window).bind("rmt_player", event => {
         let data = event.originalEvent.data;
-        if(data.pokey_regs) {
-            let regs = Array.from(data.pokey_regs);
+        if(data.pokeyRegs) {
+            let regs = Array.from(data.pokeyRegs);
             regs.map(hex2).map((v, i) => {
                 set_reg(i < 9 ? '0' : '1', reg_names[i], v);
             })
         }
-        position_info.text(`${data.current_frame}`)
+        position_info.text(`${data.currentFrame}`)
     })
 
     $("#details > a.toggle").click(e => {

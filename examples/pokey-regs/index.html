@@ -2,7 +2,7 @@
 <head>
     <title>Web POKEY - Registers</title>
     <style>
-        #pokey_regs input {
+        #pokeyRegs input {
             width: 3em
         }
     </style>
@@ -21,9 +21,9 @@
 
             // init ui
 
-            $('#pokey_regs input').change(e => {
+            $('#pokeyRegs input').change(e => {
                 audioContext.resume();
-                let hash = Array.from($('#pokey_regs input').map((i, v) => $(v).val())).join("_")
+                let hash = Array.from($('#pokeyRegs input').map((i, v) => $(v).val())).join("_")
                 document.location.hash = '#' + hash
             }).val("00")
             $('body').click(() => audioContext.resume());
@@ -33,7 +33,7 @@
                 let regs = hash.split("_")
                 if (regs && regs.length == 9) {
                     let msg = regs.flatMap((v, i) => [i, parseInt(v, 16), 0])
-                    $('#pokey_regs input').map((i, v) => $(v).val(regs[i]))
+                    $('#pokeyRegs input').map((i, v) => $(v).val(regs[i]))
 
                     // send regs
                     pokeyNode.port.postMessage(msg)
@@ -46,7 +46,7 @@
 </head>
 
 <body>
-    <table id="pokey_regs">
+    <table id="pokeyRegs">
         <tr>
             <td></td>
             <th>AUDF</th>
