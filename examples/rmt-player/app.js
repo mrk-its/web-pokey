@@ -96,6 +96,8 @@ async function init(latencyHint) {
             $("#sap_error").text(rmt_player.error_message);
             return
         }
+        $('#player .title').text(rmt_player.song.name)
+        $('#player .details').text(`${rmt_player.song.n_channels == 8 ? 'stereo' : 'mono'} ${rmt_player.song.song_speed} / ${rmt_player.song.instrument_freq}`)
         rmt_player.play()
 
         let instr_selector = $("#instrument")
