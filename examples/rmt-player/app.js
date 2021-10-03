@@ -1,5 +1,5 @@
 import { createAnalyser } from '../utils/analyser.js'
-import { RMTPlayer} from './rmt.js'
+import { RMTPlayer} from './web-rmt/rmt.js'
 const _reg_names = ["audf1", "audc1", "audf2", "audc2", "audf3", "audc3", "audf4", "audc4", "audctl"];
 const reg_names = [..._reg_names, ..._reg_names]
 

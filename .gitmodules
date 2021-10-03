@@ -1,0 +1,3 @@
+[submodule "examples/rmt-player/web-rmt"]
+	path = examples/rmt-player/web-rmt
+	url = https://github.com/mrk-its/web-rmt
