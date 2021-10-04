@@ -22,6 +22,9 @@
             font-weight: bold;
             font-size: 120%;
         }
+        #player .position-info {
+            font-family: monospace;
+        }
         #player .details {
             color: gray;
             font-size: 80%;
@@ -161,6 +164,10 @@
             <br style="clear:both" />
         </div>
         <div>
+            fps: <select name="fps">
+                <option value="50">PAL</option>
+                <option value="60">NTSC</option>
+            </select>
             sample rate: <select class="sample_rate">
                 <option value="44100">44100</option>
                 <option value="48000">48000</option>

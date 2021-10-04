@@ -3,8 +3,12 @@ import { RMTPlayer} from './web-rmt/rmt.js'
 const _reg_names = ["audf1", "audc1", "audf2", "audc2", "audf3", "audc3", "audf4", "audc4", "audctl"];
 const reg_names = [..._reg_names, ..._reg_names]
 
-function get_sample_rate() {
+function getSampleRate() {
     return parseInt(localStorage.sampleRate2 || 56000)
+}
+
+function getFrameRate() {
+    return parseInt(localStorage.frameRate || 50)
 }
 
 const NOTE_KEYMAP = [
@@ -55,7 +59,7 @@ async function init(latencyHint) {
     var latencyHint = parseFloat(localStorage.latencyHint);
     if(!(latencyHint >=0 )) latencyHint = localStorage.latencyHint || "playback";
     let audioContextParams = {
-        sampleRate: get_sample_rate(),
+        sampleRate: getSampleRate(),
         latencyHint,
     }
     const audioContext = new AudioContext(audioContextParams)
@@ -72,10 +76,15 @@ async function init(latencyHint) {
 
     $("#latency").text(audioContext.baseLatency)
 
-    $("select.sample_rate").val(get_sample_rate()).change((e) => {
+    $("select.sample_rate").val(getSampleRate()).change((e) => {
         let val = $(e.target).val()
         localStorage.sampleRate2 = val
         window.location.reload(true)
+    })
+    $("select[name=fps]").val(getFrameRate()).change(e => {
+        let val = parseFloat($(e.target).val())
+        localStorage.frameRate = val
+        rmt_player.setFrameRate(val)
     })
 
     await audioContext.audioWorklet.addModule('../../pokey.js')
@@ -87,7 +96,7 @@ async function init(latencyHint) {
     // pokeyNode.connect(audioContext.destination)
     pokeyNode.connect(analyser.node);
 
-    let rmt_player = new RMTPlayer(audioContext, pokeyNode);
+    let rmt_player = new RMTPlayer(audioContext, pokeyNode, {frameRate: getFrameRate()});
     window.rmt_player = rmt_player
 
     function load(buffer) {
@@ -225,7 +234,7 @@ async function init(latencyHint) {
                 set_reg(i < 9 ? '0' : '1', reg_names[i], v);
             })
         }
-        position_info.text(`${data.currentFrame}`)
+        position_info.text(`${hex2(data.trackPos)} / ${hex2(data.tracksListPos)}`)
     })
 
     $("#details > a.toggle").click(e => {
