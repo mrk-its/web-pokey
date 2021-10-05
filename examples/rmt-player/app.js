@@ -288,7 +288,7 @@ CMD: ${commands}
   F: ${filters}
   P: ${portas}
 
-TABLE OF NOTES: |${instrument.table.map(hex2).join(" ")}|
+TABLE OF NOTES: |${Array.from(i.table).map(hex2).join(" ")}|
         `).appendTo(cont)
 
         return cont;
