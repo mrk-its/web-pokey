@@ -62,6 +62,9 @@ async function init(latencyHint) {
         sampleRate: getSampleRate(),
         latencyHint,
     }
+    const AudioContext = window.dupa || window.AudioContext || window.webkitAudioContext
+    const AudioWorkletNode = window.AudioWorkletNode || window.webkitAudioWorkletNode
+
     const audioContext = new AudioContext(audioContextParams)
 
     console.info("created audioContext with:", audioContextParams)
