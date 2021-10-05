@@ -273,7 +273,7 @@ NAME: ${i.name} (size: ${size} bytes)
  EFFECT: ${'  '         }  ENVELOPE: ${'  '        }   TABLE:
   DELAY: ${h2(i.delay)  }      ELEN: ${h2(i.elen)  }    TLEN: ${h2(i.tlen)}
 VIBRATO: ${h2(i.vibrato)}       EGO: ${h2(i.ego)   }     TGO: ${h2(i.tgo)}
- FSHIFT: ${h2(i.fshift) }    VSLIDE: ${h2(i.vslide)}    TSPD: ${h2(i.tspd)}
+ FSHIFT: ${h2(i.fshift) }    VSLIDE: ${h2(i.vslide)}    TSPD: ${h2(i.tspd + 1)}
          ${'  '         }      VMIN: ${h2(i.vmin)  }    TYPE: ${h2(i.ttype)}
  AUDCTL: ${h2(i.audctl) }            ${'  '        }    MODE: ${h2(i.tmode)}
      ${v1}
