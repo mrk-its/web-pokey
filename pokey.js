@@ -43,12 +43,8 @@ class POKEY {
       }
       return array;
     }
-    // this.poly_4 = poly_array(new Poly4())
-    // this.poly_5 = poly_array(new Poly5())
-
-    this.poly_4 = [1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0]
-    this.poly_5 = [1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0]
-
+    this.poly_4 = poly_array(new Poly4())
+    this.poly_5 = poly_array(new Poly5())
     this.poly_9 = poly_array(new Poly9())
     this.poly_17 = poly_array(new Poly17())
     this.cycle_cnt = 0;
@@ -318,7 +314,7 @@ class Poly4 extends PolyGenerator {
     super(4)
   }
   compute(v, n_bits, highest_bit) {
-    return (v >> 1) + (((v << (n_bits - 1)) ^ (v << (3 - 1))) & highest_bit)
+    return ((v + v)) + (~((v >> 2) ^ (v >> 3)) & 1)
   }
 }
 
@@ -327,7 +323,7 @@ class Poly5 extends PolyGenerator {
     super(5)
   }
   compute(v, n_bits, highest_bit) {
-    return (v >> 1) + (((v << (n_bits - 1)) ^ (v << (3 - 1))) & highest_bit)
+    return ((v + v)) + (~((v >> 2) ^ (v >> 4)) & 1)
   }
 }
 
@@ -336,7 +332,7 @@ class Poly9 extends PolyGenerator {
     super(9)
   }
   compute(v, n_bits, highest_bit) {
-    return (v >> 1) + (((v << (n_bits - 1)) ^ (v << (4 - 1))) & highest_bit)
+    return ((v >> 1)) + (((v << 8) ^ (v << 3)) & 0x100)
   }
 }
 
@@ -345,7 +341,7 @@ class Poly17 extends PolyGenerator {
     super(17)
   }
   compute(v, n_bits, highest_bit) {
-    return (v >> 1) + (((v << (n_bits - 1)) ^ (v << (12 - 1))) & highest_bit)
+    return ((v >> 1)) + (((v << 16) ^ (v << 11)) & 0x10000)
   }
 }
 
