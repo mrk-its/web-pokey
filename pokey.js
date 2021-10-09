@@ -43,9 +43,6 @@ class POKEY {
       }
       return array;
     }
-    // this.poly_4 = poly_array(new Poly4())
-    // this.poly_5 = poly_array(new Poly5())
-
     this.poly_4 = poly_array(new Poly4())
     this.poly_5 = poly_array(new Poly5())
     this.poly_9 = poly_array(new Poly9())
