@@ -9,6 +9,9 @@ const HIGH_PASS_TIME_CONST = 0.0026
 
 class POKEY {
   constructor(index) {
+    this.buffer = [];
+    this.buffer_pos = 0;
+
     this.index = index
     if (sampleRate == 48000) {
       this.fir_filter = new FIRFilter(FIR_37_to_1);
@@ -35,6 +38,7 @@ class POKEY {
     this.cnt = [0, 0, 0, 0];
     this.square_output = [0, 0, 0, 0];
     this.output = [0, 0, 0, 0];
+    this.console = 0;
 
     function poly_array(gen) {
       let array = new Int8Array(gen.size())
@@ -49,6 +53,38 @@ class POKEY {
     this.poly_17 = poly_array(new Poly17())
     this.cycle_cnt = 0;
   }
+
+  feed(data) {
+    this.buffer = this.buffer.concat(data);
+  }
+
+  truncateBuffer() {
+    if (this.buffer_pos > 0) {
+      this.buffer.splice(0, this.buffer_pos);
+      this.buffer_pos = 0;
+    }
+  }
+
+  processEvents(currentFrame) {
+    while (
+      this.buffer_pos < this.buffer.length
+      && this.buffer[this.buffer_pos + 2] <= currentFrame / sampleRate
+    ) {
+      var index = this.buffer[this.buffer_pos] & 0xf;
+      let value = this.buffer[this.buffer_pos + 1];
+      if (index == 8) {
+        this.set_audctl(value)
+      } else if (index == 9) {
+        this.set_console(value);
+      } else if ((index & 1) == 0) {
+        this.set_audf(index >> 1, value);
+      } else {
+        this.set_audc(index >> 1, value);
+      }
+      this.buffer_pos += 3;
+    }
+  }
+
   set_audctl(value) {
     this.audctl = value;
     this.fast_1 = (value & 0x40) > 0;
@@ -69,7 +105,9 @@ class POKEY {
   set_audc(index, value) {
     this.audc[index] = value;
   }
-
+  set_console(value) {
+    this.console = value & 1;
+  }
   get_poly_output(k, poly) {
     return poly[(this.cycle_cnt + k) % poly.length];
   }
@@ -92,7 +130,7 @@ class POKEY {
   }
 
   set_output(k) {
-    if(this.audc[k] & 0x80 || this.get_poly_output(k, this.poly_5)) {
+    if (this.audc[k] & 0x80 || this.get_poly_output(k, this.poly_5)) {
       this.square_output[k] = (~this.square_output[k]) & 1
     }
     this.output[k] = this.get_output(k)
@@ -182,8 +220,8 @@ class POKEY {
       let ch4 = 1 & this.output[3] | vol_only(3)
 
       let normalize = vol => vol / 60.0
-      let normalizeAltirra = vol => (1.0 - Math.exp(-2.9 * (vol / 60.0))) / (1.0 - Math.exp(-2.9))
-      let sample = normalizeAltirra(ch1 * vol(0) + ch2 * vol(1) + ch3 * vol(2) + ch4 * vol(3))
+      let normalizeAltirra = vol => (1.0 - Math.exp(-2.9 * (vol / 64.0))) / (1.0 - Math.exp(-2.9))
+      let sample = normalizeAltirra(ch1 * vol(0) + ch2 * vol(1) + ch3 * vol(2) + ch4 * vol(3) + this.console * 4)
       this.fir_filter.add_sample(sample);
     }
     return this.high_pass_filter.get(this.fir_filter.get());
@@ -205,23 +243,33 @@ class POKEYProcessor extends AudioWorkletProcessor {
 
   constructor(options) {
     super();
-    this.is_stereo = options.outputChannelCount && options.outputChannelCount[0] > 1 || false
+    this.has_stereo_output = options.outputChannelCount && options.outputChannelCount[0] > 1 || false
+    this.is_stereo_input = true
 
-    this.is_stereo_input = this.is_stereo
     this.stereo_input_cnt = 0;
 
-    console.log("is_stereo:", this.is_stereo)
-
     this.pokey = [new POKEY('L')];
-    if (this.is_stereo)
-      this.pokey.push(new POKEY('R'))
-
-    this.buffer = [];
-    this.buffer_pos = 0;
 
     this.port.onmessage = (e) => {
-      if (e.data.length >= 3) {
-        this.buffer = this.buffer.concat(e.data);
+      this.setStereo(e.data.length > 1)
+      if (e.data[0] && e.data[0].length) {
+        this.pokey[0].feed(e.data[0])
+      }
+      if (e.data[1] && e.data[1].length) {
+        this.pokey[1].feed(e.data[1])
+      }
+    }
+  }
+
+  setStereo(enable) {
+    if (!this.has_stereo_output) return;
+    let isEnabled = this.pokey.length > 1;
+    if (enable ^ isEnabled) {
+      console.log("setStereo:", enable)
+      if (enable) {
+        this.pokey.push(new POKEY('R'));
+      } else {
+        this.pokey.splice(1, 1);
       }
     }
   }
@@ -229,44 +277,12 @@ class POKEYProcessor extends AudioWorkletProcessor {
   set_stereo_input(is_stereo_input) {
     if (is_stereo_input ^ this.is_stereo_input) {
       console.info("is_stereo_input:", is_stereo_input);
+      this.is_stereo_input = is_stereo_input;
     }
-    this.is_stereo_input = is_stereo_input;
   }
 
   processEvents(currentFrame) {
-    var pokey_lr = 0;
-
-    while (
-      this.buffer_pos < this.buffer.length
-      && this.buffer[this.buffer_pos + 2] <= currentFrame / sampleRate
-    ) {
-      var index = this.buffer[this.buffer_pos];
-      let value = this.buffer[this.buffer_pos + 1];
-      let pokey_idx = this.is_stereo ? (index >> 4) & 1 : 0;
-      index = index & 0xf;
-      pokey_lr |= (pokey_idx + 1)
-      if (index == 8) {
-        this.pokey[pokey_idx].set_audctl(value)
-      } else if ((index & 1) == 0) {
-        this.pokey[pokey_idx].set_audf(index >> 1, value);
-      } else {
-        this.pokey[pokey_idx].set_audc(index >> 1, value);
-      }
-      this.buffer_pos += 3;
-    }
-    if (pokey_lr == 3) {
-      this.stereo_input_cnt += 1;
-      if (this.stereo_input_cnt > 20) {
-        this.stereo_input_cnt = 20;
-        this.set_stereo_input(true);
-      }
-    } else if (pokey_lr == 1) {
-      this.stereo_input_cnt -= 1;
-      if (this.stereo_input_cnt < 0) {
-        this.stereo_input_cnt = 0;
-        this.set_stereo_input(false);
-      }
-    }
+    this.pokey.forEach(p => p.processEvents(currentFrame))
   }
 
   process(inputs, outputs, parameters) {
@@ -283,10 +299,7 @@ class POKEYProcessor extends AudioWorkletProcessor {
         }
       }
     }
-    if (this.buffer_pos > 0) {
-      this.buffer.splice(0, this.buffer_pos);
-      this.buffer_pos = 0;
-    }
+    this.pokey.forEach(p => p.truncateBuffer())
     return true
   }
 }
@@ -394,7 +407,7 @@ class FIRHalfBandFilter extends FIRFilter {
     let acc = 0.5 * this.buffer[(this.current_pos + mid) % len];
     var j = this.current_pos;
     var k = (this.current_pos + this.coefficients.length - 1) % this.buffer.length
-    for (var i = 0; i < mid ; i+=2) {
+    for (var i = 0; i < mid; i += 2) {
       acc += this.coefficients[i] * (this.buffer[j] + this.buffer[k])
       j += 2;
       if (j >= len) j -= len;
@@ -479,7 +492,7 @@ class Filter_Cascade_32_1 {
         this.fir2_3.add_sample(this.fir2_2.get())
         if (i % 8 == 0) {
           this.fir2_4.add_sample(this.fir2_3.get())
-          if(i % 16 == 0) {
+          if (i % 16 == 0) {
             this.fir2_5.add_sample(this.fir2_4.get())
           }
         }
