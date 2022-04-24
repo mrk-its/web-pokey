@@ -129,7 +129,7 @@ export class SAPPlayer {
     _send_regs(regs) {
         let t = this.startTime != null ? this.startTime + this.currentFrame * this.frameInterval : this.getCurrentTime() + this.latency;
         let msg = regs.slice().flatMap((v, i) => [i < 9 ? i : i - 9 + 16, v, t])
-        this.pokeyNode.port.postMessage(msg);
+        this.pokeyNode.port.postMessage([msg]);
         this.sendEvent(regs)
     }
     stop() {

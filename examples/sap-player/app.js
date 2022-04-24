@@ -75,7 +75,7 @@ async function init(latencyHint) {
         audioContext.resume();
         let t = audioContext.currentTime + 0.05;
         let msg = reg_names.map(get_reg).flatMap((v, i) => [i, v, t])
-        pokeyNode.port.postMessage(msg);
+        pokeyNode.port.postMessage([msg]);
     }
 
     function get_reg(name) {
